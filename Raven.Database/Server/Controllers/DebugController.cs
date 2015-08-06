@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -21,6 +22,8 @@ using Raven.Abstractions.Data;
 using Raven.Abstractions.Logging;
 using Raven.Abstractions.Util;
 using Raven.Database.Bundles.SqlReplication;
+using Raven.Database.Config;
+using Raven.Database.Indexing;
 using Raven.Database.Linq;
 using Raven.Database.Linq.Ast;
 using Raven.Database.Server.WebApi;
@@ -580,6 +583,18 @@ namespace Raven.Database.Server.Controllers
 			});
 
 			return GetMessageWithObject(stat);
+		}
+
+		[HttpGet]
+		[RavenRoute("debug/auto-tuning-info")]
+		[RavenRoute("databases/{databaseName}/debug/auto-tuning-info")]
+		public HttpResponseMessage DebugAutoTuningInfo()
+		{
+			return GetMessageWithObject(new 
+			{
+				Reason = Database.AutoTuningTrace,
+				LowMemoryCallsRecords = MemoryStatistics.LowMemoryCallRecords
+			});
 		}
 
 		[HttpGet]

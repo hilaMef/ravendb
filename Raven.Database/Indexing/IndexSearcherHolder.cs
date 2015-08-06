@@ -141,7 +141,7 @@ namespace Raven.Database.Indexing
 				MemoryStatistics.RegisterLowMemoryHandler(this);
             }
 
-	        public void HandleLowMemory()
+			public LowMemoryHandlerStatistics HandleLowMemory()
 	        {
 				rwls.EnterWriteLock();
 		        try
@@ -152,11 +152,12 @@ namespace Raven.Database.Indexing
 		        {
 					rwls.ExitWriteLock();
 		        }
+				return new LowMemoryHandlerStatistics();
 	        }
 
-	        public void SoftMemoryRelease()
+			public LowMemoryHandlerStatistics SoftMemoryRelease()
 	        {
-		        
+		        return new LowMemoryHandlerStatistics();
 	        }
 
 	        public LowMemoryHandlerStatistics GetStats()

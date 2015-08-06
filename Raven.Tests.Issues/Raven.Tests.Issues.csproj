@@ -72,8 +72,8 @@
     <Reference Include="FluentAssertions.Core, Version=3.4.1.0, Culture=neutral, PublicKeyToken=33f2691a05b67b6a, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\FluentAssertions.3.4.1\lib\net45\FluentAssertions.Core.dll</HintPath>
-		</Reference>
-		<Reference Include="FluentAssertions.Core">
+    </Reference>
+    <Reference Include="FluentAssertions.Core">
       <HintPath>..\packages\FluentAssertions.3.4.1\lib\net45\FluentAssertions.Core.dll</HintPath>
       <Private>True</Private>
     </Reference>
@@ -155,6 +155,7 @@
     <Compile Include="1379\RavenDB_1379_Client_Remote.cs" />
     <Compile Include="ActualValueInJsonReaderException.cs" />
     <Compile Include="BackupRestore.cs" />
+    <Compile Include="RavenDB-3539.cs" />
     <Compile Include="RavenDB-3559.cs" />
     <Compile Include="RavenDB-3609.cs" />
     <Compile Include="RavenDB-3726.cs" />

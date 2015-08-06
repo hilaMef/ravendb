@@ -85,14 +85,17 @@ namespace Raven.Database.Indexing
 	            }
 	        }
 
-	        public void HandleLowMemory()
+			public LowMemoryHandlerStatistics HandleLowMemory()
 	        {
                 FieldCache_Fields.DEFAULT.PurgeAllCaches();
+				
+				return new LowMemoryHandlerStatistics();
 	            
 	        }
 
-		    public void SoftMemoryRelease()
+			public LowMemoryHandlerStatistics SoftMemoryRelease()
 		    {
+				return new LowMemoryHandlerStatistics();
 		    }
 
 		    public LowMemoryHandlerStatistics GetStats()

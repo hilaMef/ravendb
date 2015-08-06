@@ -44,18 +44,25 @@ namespace Raven.Database.Impl
 			return result;
 		}
 
-		public void HandleLowMemory()
+		public LowMemoryHandlerStatistics HandleLowMemory()
 		{
-			var oldCache = cachedSerializedDocuments;
-
-			cachedSerializedDocuments = CreateCache();
-
-			oldCache.Dispose();
+			using (var oldCache = cachedSerializedDocuments)
+			{
+				cachedSerializedDocuments = CreateCache();
+				var oldCount = oldCache.GetCount();
+				return new LowMemoryHandlerStatistics
+				{
+					Name = oldCache.Name,
+					DatabaseName = configuration.DatabaseName,
+					Reason = string.Format("A new document cache was created. Old Cache had {0:#,#} items",
+						oldCount)
+				};
+			}
 		}
 
-		public void SoftMemoryRelease()
+		public LowMemoryHandlerStatistics SoftMemoryRelease()
 		{
-			
+			return new LowMemoryHandlerStatistics();
 		}
 
 		public LowMemoryHandlerStatistics GetStats()

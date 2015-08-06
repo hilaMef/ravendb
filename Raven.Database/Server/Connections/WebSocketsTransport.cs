@@ -64,18 +64,22 @@ namespace Raven.Database.Server.Connections
         private class DisconnectWebSockets : ILowMemoryHandler
         {
             public static readonly DisconnectWebSockets Instance = new DisconnectWebSockets();
-            
 
-	        public void HandleLowMemory()
+
+			public LowMemoryHandlerStatistics HandleLowMemory()
 	        {
 				SoftMemoryRelease();
+
+				return new LowMemoryHandlerStatistics();
 	        }
 
-	        public void SoftMemoryRelease()
+			public LowMemoryHandlerStatistics SoftMemoryRelease()
 	        {
 				var cancellationTokenSource = ravenGcCancellation;
 				ravenGcCancellation = new CancellationTokenSource();
 				cancellationTokenSource.Cancel();
+
+				return new LowMemoryHandlerStatistics();
 	        }
 
 	        public LowMemoryHandlerStatistics GetStats()
