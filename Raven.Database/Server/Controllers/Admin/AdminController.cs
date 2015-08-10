@@ -686,7 +686,8 @@ namespace Raven.Database.Server.Controllers.Admin
 			return GetMessageWithObject(new
 			{
 				Reason = Database.AutoTuningTrace,
-				AutoTuningMemoryTrace = MemoryStatistics.LowMemoryCallRecords,
+				LowMemoryCallsRecords = MemoryStatistics.LowMemoryCallRecords,
+				CpuUsageCallsRecords = CpuStatistics.cpuUsageCallsRecords
 			});
 		}
 

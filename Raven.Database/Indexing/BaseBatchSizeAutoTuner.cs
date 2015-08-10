@@ -43,7 +43,7 @@ namespace Raven.Database.Indexing
 			return new LowMemoryHandlerStatistics
 			{
 				DatabaseName = context.DatabaseName,
-				Summary = string.Format("Reduced batch size from {0:#,#} to {1:#,#}", prev, NumberOfItemsToProcessInSingleBatch);
+				Summary = string.Format("Reduced batch size from {0:#,#} to {1:#,#}", prev, NumberOfItemsToProcessInSingleBatch)
 			};
 		}
 

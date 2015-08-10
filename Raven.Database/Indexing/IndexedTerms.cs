@@ -12,6 +12,7 @@ using System.Runtime.CompilerServices;
 using Lucene.Net.Index;
 using Lucene.Net.Support;
 using Lucene.Net.Util;
+using Raven.Abstractions.Data;
 using Raven.Database.Config;
 using Raven.Database.Plugins.Builtins.Monitoring.Snmp.Objects.Database.Statistics;
 using Raven.Imports.Newtonsoft.Json.Linq;

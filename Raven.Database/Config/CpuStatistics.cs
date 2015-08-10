@@ -116,7 +116,7 @@ namespace Raven.Database.Config
 
 			if (average >= HighNotificationThreshold)
 			{
-				if (!cpuUsageCallsRecords.GetEnumerator().Current.Reason.CompareTo("High CPU usage"))
+				if (string.Compare(cpuUsageCallsRecords.GetEnumerator().Current.Reason, "High CPU usage", StringComparison.Ordinal)!=0)
 				{
 					stats.Reason = "High CPU usage";
 					cpuUsageCallsRecords.Enqueue(stats);
@@ -125,7 +125,7 @@ namespace Raven.Database.Config
 			}
 			else if (average < LowNotificationThreshold)
 			{
-				if (!cpuUsageCallsRecords.GetEnumerator().Current.Reason.CompareTo("Low CPU usage"))
+				if ((string.Compare(cpuUsageCallsRecords.GetEnumerator().Current.Reason, "Low CPU usage", StringComparison.Ordinal)!=0))
 				{
 					stats.Reason = "Low CPU usage";
 					cpuUsageCallsRecords.Enqueue(stats);
@@ -134,7 +134,7 @@ namespace Raven.Database.Config
 			}
 
 			//Normal CPU usage
-			else if (!cpuUsageCallsRecords.GetEnumerator().Current.Reason.CompareTo("Normal CPU usage"))
+			else if ((string.Compare(cpuUsageCallsRecords.GetEnumerator().Current.Reason, "Normal CPU usage", StringComparison.Ordinal)!=0))
 			{
 
 				stats.Reason = "Normal CPU usage";

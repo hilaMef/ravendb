@@ -68,18 +68,14 @@ namespace Raven.Database.Server.Connections
 
 			public LowMemoryHandlerStatistics HandleLowMemory()
 	        {
-				SoftMemoryRelease();
-
-				return new LowMemoryHandlerStatistics();
-	        }
-
-			public LowMemoryHandlerStatistics SoftMemoryRelease()
-	        {
 				var cancellationTokenSource = ravenGcCancellation;
 				ravenGcCancellation = new CancellationTokenSource();
 				cancellationTokenSource.Cancel();
-
-				return new LowMemoryHandlerStatistics();
+				return new LowMemoryHandlerStatistics
+				{
+					Name = "DisconnectWebSockets",
+					Summary = string.Format("Cancellation token was called. Cancellation notification to all the web sockets threads")
+				};
 	        }
 
 	        public LowMemoryHandlerStatistics GetStats()

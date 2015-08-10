@@ -18,12 +18,6 @@ namespace Raven.Abstractions.Data
 			Name = name;
 			DatabaseName = dbname;
 		}
-		/*public AutoTunerDecisionDescription(string dbname, string reason)
-		{
-			Time = SystemTime.UtcNow;
-			Reason = reason;
-			DatabaseName = dbname;
-		}*/
 		public DateTime Time { get; set; }
 		public string Name { get; set; }
 		public string DatabaseName { get; set; }

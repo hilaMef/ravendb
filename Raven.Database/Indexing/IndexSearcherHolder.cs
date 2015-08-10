@@ -144,6 +144,7 @@ namespace Raven.Database.Indexing
 			public LowMemoryHandlerStatistics HandleLowMemory()
 	        {
 				rwls.EnterWriteLock();
+				var countItems = docsCache.Count;
 		        try
 		        {
                     docsCache.Clear();
@@ -152,12 +153,12 @@ namespace Raven.Database.Indexing
 		        {
 					rwls.ExitWriteLock();
 		        }
-				return new LowMemoryHandlerStatistics();
-	        }
-
-			public LowMemoryHandlerStatistics SoftMemoryRelease()
-	        {
-		        return new LowMemoryHandlerStatistics();
+				return new LowMemoryHandlerStatistics
+				{
+					Name = indexName,
+					DatabaseName = databaseName,
+					Summary = string.Format("A documents cache with {0:#,#} items was cleared", countItems)
+				};
 	        }
 
 	        public LowMemoryHandlerStatistics GetStats()

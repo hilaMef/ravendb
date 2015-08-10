@@ -19,6 +19,7 @@ using ICSharpCode.NRefactory.CSharp;
 
 using Raven.Abstractions;
 using Raven.Abstractions.Data;
+using Raven.Abstractions.Exceptions;
 using Raven.Abstractions.Logging;
 using Raven.Abstractions.Util;
 using Raven.Database.Bundles.SqlReplication;
@@ -590,10 +591,10 @@ namespace Raven.Database.Server.Controllers
 		[RavenRoute("databases/{databaseName}/debug/auto-tuning-info")]
 		public HttpResponseMessage DebugAutoTuningInfo()
 		{
-			return GetMessageWithObject(new 
+			return GetMessageWithObject(new AutoTunerInfo
 			{
-				Reason = Database.AutoTuningTrace,
-				LowMemoryCallsRecords = MemoryStatistics.LowMemoryCallRecords
+				Reason = Database.AutoTuningTrace.ToList(),
+				LowMemoryCallsRecords = MemoryStatistics.LowMemoryCallRecords.ToList()
 			});
 		}
 
@@ -884,6 +885,7 @@ namespace Raven.Database.Server.Controllers
 		}
 	}
 
+	
 	public class RouteInfo
 	{
 		public string Key { get; set; }

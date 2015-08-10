@@ -1,51 +1,21 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Security.Permissions;
 using System.Text.RegularExpressions;
 using System.Threading;
+using Microsoft.VisualBasic.Devices;
 using Raven.Abstractions;
 using Raven.Abstractions.Data;
 using Raven.Abstractions.Exceptions;
 using Raven.Abstractions.Logging;
-using Raven.Database.Plugins.Builtins.Monitoring.Snmp.Objects.Database.Statistics;
 using Raven.Unix.Native;
-
 using Sparrow.Collections;
 
 namespace Raven.Database.Config
 {
-
-	public class LowMemoryCalledRecord
-	{
-
-		public LowMemoryCalledRecord()
-		{
-			Operations = new List<LowMemoryHandlerStatistics>();
-		}
-
-		public DateTime StartedAt { get; set; }
-		public TimeSpan Duration { get; set; }
-		public string Reason { get; set; }
-
-		public List<LowMemoryHandlerStatistics> Operations { get; set; }
-
-	}
-	public class LowMemoryHandlerStatistics
-	{
-		public string Name { get; set; }
-		public long EstimatedUsedMemory { get; set; }
-		public string DatabaseName { get; set; }
-		public object Metadata { get; set; }
-		public string Summary { get; set; }
-
-	}
-
 	internal interface ILowMemoryHandler
 	{
 		LowMemoryHandlerStatistics HandleLowMemory();
@@ -85,9 +55,9 @@ namespace Raven.Database.Config
 		private static ManualResetEvent lowPosixMemorySimulationEvent = new ManualResetEvent(false);
 		public static void StopPosixLowMemThread() { stopPosixLowMemThreadEvent.Set(); }
 
-		public static readonly FixedSizeConcurrentQueue<LowMemoryCalledRecord> LowMemoryCallRecords = new FixedSizeConcurrentQueue<LowMemoryCalledRecord>(25);
+		public static readonly FixedSizeConcurrentQueue<LowMemoryCalledRecord> LowMemoryCallRecords = new FixedSizeConcurrentQueue<LowMemoryCalledRecord>(100);
 
-		static MemoryStatistics()
+		static MemoryStatistics() 
 		{
 			LowMemoryHandlers = new ConcurrentSet<WeakReference<ILowMemoryHandler>>();
 
@@ -352,7 +322,7 @@ namespace Raven.Database.Config
 #else
 				try
 				{
-					return (int)(new Microsoft.VisualBasic.Devices.ComputerInfo().TotalPhysicalMemory / 1024 / 1024);
+					return (int)(new ComputerInfo().TotalPhysicalMemory / 1024 / 1024);
 				}
 				catch
 				{
@@ -434,7 +404,7 @@ namespace Raven.Database.Config
 					// Used Memory (UM) = WS - DO = CLR + LU - DO = (LO + DO) + LU - DO = LO + LU
 					// Available Memory (AM) = Total Memory (TM) - UM  = TM - ( LO + LU ) = TM - LO - LU
 
-					long totalMemory = (long)new Microsoft.VisualBasic.Devices.ComputerInfo().AvailablePhysicalMemory;
+					long totalMemory = (long)new ComputerInfo().AvailablePhysicalMemory;
 					long liveObjectMemory = GC.GetTotalMemory(false);
 
 					// There is still no way for us to query the amount of unmanaged memory in the working set

@@ -54,15 +54,9 @@ namespace Raven.Database.Impl
 				{
 					Name = oldCache.Name,
 					DatabaseName = configuration.DatabaseName,
-					Reason = string.Format("A new document cache was created. Old Cache had {0:#,#} items",
-						oldCount)
+					Summary = string.Format("A new document cache was created. Old Cache had {0:#,#} items", oldCount)
 				};
 			}
-		}
-
-		public LowMemoryHandlerStatistics SoftMemoryRelease()
-		{
-			return new LowMemoryHandlerStatistics();
 		}
 
 		public LowMemoryHandlerStatistics GetStats()

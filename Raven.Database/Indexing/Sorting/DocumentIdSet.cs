@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web.UI.WebControls;
 using Lucene.Net.Index;
+using Raven.Abstractions.Data;
 using Raven.Database.Config;
 using Raven.Database.Linq.PrivateExtensions;
 using Sparrow.Collections;
