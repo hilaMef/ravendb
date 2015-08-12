@@ -8,7 +8,7 @@ namespace Raven.Abstractions.Data
 	{
 		public List<AutoTunerDecisionDescription> Reason { get; set; }
 		public List<LowMemoryCalledRecord> LowMemoryCallsRecords { get; set; }
-
+		public List<cpuUsageCallsRecord> CpuUsageCallsRecords { get; set; }
 	}
 	public class LowMemoryCalledRecord
 	{
@@ -32,6 +32,12 @@ namespace Raven.Abstractions.Data
 		public string DatabaseName { get; set; }
 		public object Metadata { get; set; }
 		public string Summary { get; set; }
+
+	}
+	public class cpuUsageCallsRecord
+	{
+		public DateTime StartedAt { get; set; }
+		public string Reason { get; set; }
 
 	}
 }

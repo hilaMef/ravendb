@@ -39,12 +39,15 @@ namespace Raven.Database.Indexing
 		{
 			var prev = NumberOfItemsToProcessInSingleBatch;
 			NumberOfItemsToProcessInSingleBatch = CalculateReductionOfItemsInSingleBatch();
-			
-			return new LowMemoryHandlerStatistics
+			if (prev != NumberOfItemsToProcessInSingleBatch)
 			{
-				DatabaseName = context.DatabaseName,
-				Summary = string.Format("Reduced batch size from {0:#,#} to {1:#,#}", prev, NumberOfItemsToProcessInSingleBatch)
-			};
+				return new LowMemoryHandlerStatistics
+				{
+					DatabaseName = context.DatabaseName,
+					Summary = string.Format("Reduced batch size from {0:#,#} to {1:#,#}", prev, NumberOfItemsToProcessInSingleBatch)
+				};
+			}
+			return new LowMemoryHandlerStatistics();
 		}
 
 		public virtual LowMemoryHandlerStatistics GetStats()

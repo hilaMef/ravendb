@@ -191,7 +191,7 @@ namespace Raven.Database.Config
 			SetEvent(SoftMemoryReleaseEvent);
 		}
 
-		private static void RunLowMemoryHandlers(string reason)
+		public static void RunLowMemoryHandlers(string reason)
 		{
 			var inactiveHandlers = new List<WeakReference<ILowMemoryHandler>>();
 
@@ -210,7 +210,8 @@ namespace Raven.Database.Config
 					try
 					{
 						var res = handler.HandleLowMemory();
-						stats.Operations.Add(res);
+						if(!string.IsNullOrEmpty(res.Summary))
+							stats.Operations.Add(res);
 					}
 					catch (Exception e)
 					{

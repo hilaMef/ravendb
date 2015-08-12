@@ -683,11 +683,11 @@ namespace Raven.Database.Server.Controllers.Admin
 		[RavenRoute("databases/{databaseName}/admin/debug/auto-tuning-info")]
 		public HttpResponseMessage DebugAutoTuningInfo()
 		{
-			return GetMessageWithObject(new
+			return GetMessageWithObject(new AutoTunerInfo()
 			{
-				Reason = Database.AutoTuningTrace,
-				LowMemoryCallsRecords = MemoryStatistics.LowMemoryCallRecords,
-				CpuUsageCallsRecords = CpuStatistics.cpuUsageCallsRecords
+				Reason = Database.AutoTuningTrace.ToList(),
+				LowMemoryCallsRecords = MemoryStatistics.LowMemoryCallRecords.ToList(),
+				CpuUsageCallsRecords = CpuStatistics.cpuUsageCallsRecords.ToList()
 			});
 		}
 
