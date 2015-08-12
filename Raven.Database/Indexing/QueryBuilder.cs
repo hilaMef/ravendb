@@ -59,15 +59,17 @@ namespace Raven.Database.Indexing
 					var parser = new LuceneQueryParser();
 					parser.Parse(query);
 					var res = parser.LuceneAST.ToQuery(
-						new LuceneASTQueryConfiguration()
+						new LuceneASTQueryConfiguration
 						{
 							Analayzer = analyzer,
 							DefaultOperator = indexQuery.DefaultOperator,
 							FieldName = indexQuery.DefaultField ?? string.Empty
 						});
+					// The parser should throw ParseException in this case.
+					if (res == null) throw new GeoAPI.IO.ParseException("Could not parse query");
 					return res;
 				}
-				catch (Exception pe)
+				catch (ParseException pe)
 				{
 					throw new ParseException("Could not parse: '" + query + "'", pe);
 				}

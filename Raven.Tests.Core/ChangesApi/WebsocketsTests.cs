@@ -53,20 +53,16 @@ namespace Raven.Tests.Core.ChangesApi
 
 			using (var store = NewRemoteDocumentStore())
 		    {
-				Stopwatch testTimer;
 				using (var bulkInsert = store.BulkInsert(store.DefaultDatabase))
 				{
-					store.Changes().Task.Result.ForBulkInsert(bulkInsert.OperationId).Task.Result.Subscribe(x =>
-					{
-						counter.Enqueue(x);
-					});
+					var testTimer = Stopwatch.StartNew();
+					store.Changes().Task.Result.ForBulkInsert(bulkInsert.OperationId).Task.Result.Subscribe(counter.Enqueue);
 
-				    bulkInsert.Store(new ChunkedBulkInsert.Node
-				    {
-				        Name = "Parent"
-				    });
+						bulkInsert.Store(new ChunkedBulkInsert.Node
+						{
+							Name = "Parent"
+						});
  
-					testTimer = Stopwatch.StartNew();
 		
 					IssueGCRequest(store);
 
@@ -74,17 +70,18 @@ namespace Raven.Tests.Core.ChangesApi
 					{
 						Name = "Parent"
 					});
-				}
 
-			    const int maxMillisecondsToWaitUntilConnectionRestores = 5000;
+					const int maxMillisecondsToWaitUntilConnectionRestores = 5000;
 				//wait until connection restores
-                RavenJArray response;
+					RavenJArray response;
 			    var sw = Stopwatch.StartNew();
+					int retryCount = 0;
 			    do
 			    {
 				    response = IssueGetChangesRequest(store);
+						retryCount++;
 			    } while (response == null || 
-						 response.Length == 0 || 
+							 response.Length == 0 ||
 						 sw.ElapsedMilliseconds <= maxMillisecondsToWaitUntilConnectionRestores);
 				
 				//sanity check, if the test fails here, then something is wrong
@@ -95,13 +92,14 @@ namespace Raven.Tests.Core.ChangesApi
 				connectionAge.Should().BeLessThan(timeSinceTestStarted);
 		    }
 	    }
+        }
 
 	    private static DateTime GetLastForcedGCDateTimeRequest(DocumentStore store)
 	    {
 		    var request = store.JsonRequestFactory.CreateHttpJsonRequest(
 				new CreateHttpJsonRequestParams(null,
-					store.Url+ "/debug/gc-info",
-					HttpMethod.Get, 
+                    store.Url + "/debug/gc-info",
+					HttpMethod.Get,
 					store.DatabaseCommands.PrimaryCredentials,
 					store.Conventions));
 
@@ -110,7 +108,7 @@ namespace Raven.Tests.Core.ChangesApi
 
 	    }
 
-        private static RavenJArray IssueGetChangesRequest(DocumentStore store)
+		private static RavenJArray IssueGetChangesRequest(DocumentStore store)
 	    {
 		    var getChangesRequest = store
 			    .JsonRequestFactory
@@ -120,7 +118,7 @@ namespace Raven.Tests.Core.ChangesApi
 				    store.DatabaseCommands.PrimaryCredentials,
 				    store.Conventions));
 
-		    var getChangesResponse = (RavenJArray) getChangesRequest.ReadResponseJson();
+            var getChangesResponse = (RavenJArray)getChangesRequest.ReadResponseJson();
 		    return getChangesResponse;
 	    }
 

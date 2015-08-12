@@ -161,6 +161,7 @@ namespace Raven.Database.Indexing
 						yield return attribute.Term;
 					}
 					break;
+				case TermType.QuotedWildcard:
 				case TermType.WildCardTerm:
 				case TermType.PrefixTerm:				    
 					yield return GetWildcardTerm(configuration).Text;
@@ -184,35 +185,36 @@ namespace Raven.Database.Indexing
 
 	    private Term GetWildcardTerm(LuceneASTQueryConfiguration configuration)
 	    {
-			var tokenStream = configuration.Analayzer.ReusableTokenStream(configuration.FieldName, new StringReader(Term));
+		    var qouted = Type == TermType.QuotedWildcard;
+			var reader = new StringReader(qouted ? Term.Substring(1, Term.Length - 2) : Term);
+			var tokenStream = configuration.Analayzer.ReusableTokenStream(configuration.FieldName, reader);
 			var terms = new List<string>();
 			while (tokenStream.IncrementToken())
 			{
 				var attribute = (TermAttribute)tokenStream.GetAttribute<ITermAttribute>();
 				terms.Add(attribute.Term);
 			}
-
+			
 			if (terms.Count == 0)
 			{
 				return new Term(configuration.FieldName, Term);
 			}
 
 			var sb = new StringBuilder();
-
+		    int expectedLength;
 			if (terms.Count == 1)
 			{
 				var firstTerm = terms.First();
-
-				Debug.Assert(firstTerm.Length == Term.Length,
-@"if analyzer changes length of term and removes wildcards after processing it, 
-there is no way to know where to put the wildcard character back after the analysis. 
-This edge-case has a very slim chance of happening, but still we should not ignore it completely.");
-
 				if (Term.StartsWith("*") && !firstTerm.StartsWith("*")) sb.Append('*');
 				sb.Append(firstTerm);
 				if (Term.EndsWith("*") && !firstTerm.EndsWith("*")) sb.Append('*');
-
-				return new Term(configuration.FieldName, sb.ToString());
+				var res = sb.ToString();
+				expectedLength = (qouted ? 2 : 0) + res.Length;
+				Debug.Assert(expectedLength  == Term.Length,
+@"if analyzer changes length of term and removes wildcards after processing it, 
+there is no way to know where to put the wildcard character back after the analysis. 
+This edge-case has a very slim chance of happening, but still we should not ignore it completely.");
+				return new Term(configuration.FieldName, res);
 			}
 
 			foreach (var currentTerm in terms)
@@ -229,8 +231,8 @@ This edge-case has a very slim chance of happening, but still we should not igno
 			}
 
 		    var analyzedTermString = sb.ToString();
-
-			Debug.Assert(analyzedTermString.Length == Term.Length,
+		    expectedLength = analyzedTermString.Length + (qouted ? 2 : 0);
+			Debug.Assert(expectedLength == Term.Length,
 @"if analyzer changes length of term and removes wildcards after processing it, 
 there is no way to know where to put the wildcard character back after the analysis. 
 This edge-case has a very slim chance of happening, but still we should not ignore it completely.");
@@ -265,14 +267,24 @@ This edge-case has a very slim chance of happening, but still we should not igno
 		        case TermType.Long:
 					return new TermQuery(new Term(configuration.FieldName, Term)) { Boost = boost };
 	        }
+
+	        if (Type == TermType.QuotedWildcard)
+	        {
+				var res = AnalyzedWildCardQueries(configuration);
+				res.Boost = boost;
+				return res;		        
+	        }
+
 			if (Type == TermType.WildCardTerm)
 			{
 				var res = AnalyzedWildCardQueries(configuration);
 				res.Boost = boost;
 				return res;
 			}
+
 	        var tokenStream = configuration.Analayzer.ReusableTokenStream(configuration.FieldName, new StringReader(Term));
-	        List<string> terms = new List<string>();
+	        var terms = new List<string>();
+			
 			while (tokenStream.IncrementToken())
 			{
 				var attribute = (TermAttribute)tokenStream.GetAttribute<ITermAttribute>();
@@ -336,6 +348,7 @@ This edge-case has a very slim chance of happening, but still we should not igno
         public enum TermType
         {
             Quoted,
+			QuotedWildcard,
             UnQuoted,
             Float,
 			Double,
