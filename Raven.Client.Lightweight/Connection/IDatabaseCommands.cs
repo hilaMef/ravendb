@@ -301,6 +301,13 @@ namespace Raven.Client.Connection
 		TransformerDefinition[] GetTransformers(int start, int pageSize);
 
 		/// <summary>
+		/// Sets the transformer's lock mode
+		/// </summary>
+		/// <param name="name">The name of the transformer</param>
+		/// <param name="lockMode">The lock mode to be set</param>
+		void SetTransformerLock(string name, TransformerLockMode lockMode);
+
+		/// <summary>
 		///     Retrieves the document metadata for the specified document key.
 		///     <para>Returns:</para>
 		///     <para>The document metadata for the specified document, or <c>null</c> if the document does not exist</para>
@@ -457,6 +464,18 @@ namespace Raven.Client.Connection
 		/// <param name="name">name of an index</param>
 		/// <param name="indexDef">definition of an index</param>
 		string PutIndex(string name, IndexDefinition indexDef);
+
+		/// <summary>
+		///      Creates multiple indexes with the specified name, using given index definitions and priorities
+		/// </summary>
+		/// <param name="indexesToAdd">indexes to add</param>
+		string[] PutIndexes(IndexToAdd[] indexesToAdd);
+
+		/// <summary>
+		///      Creates multiple side by side indexes with the specified name, using given index definitions and priorities
+		/// </summary>
+		/// <param name="indexesToAdd">indexes to add</param>
+		string[] PutSideBySideIndexes(IndexToAdd[] indexesToAdd, Etag minimumEtagBeforeReplace = null, DateTime? replaceTimeUtc = null);
 
 		/// <summary>
 		///     Creates an index with the specified name, based on an index definition

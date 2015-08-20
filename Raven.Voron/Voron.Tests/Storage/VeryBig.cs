@@ -6,7 +6,7 @@ namespace Voron.Tests.Storage
 {
 	public class VeryBig : StorageTest
 	{
-		[Fact]
+		[PrefixesFact]
 		public void CanGrowBeyondInitialSize()
 		{
 			using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
@@ -22,7 +22,7 @@ namespace Voron.Tests.Storage
 			{
 				using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
 				{
-					var tree = tx.Environment.State.GetTree(tx,"test");
+					var tree = tx.Environment.CreateTree(tx,"test");
 					for (int j = 0; j < 12; j++)
 					{
 						tree.Add(string.Format("{0:000}-{1:000}", j, i), new MemoryStream(buffer));
@@ -32,7 +32,7 @@ namespace Voron.Tests.Storage
 			}
 		}
 
-		[Fact]
+		[PrefixesFact]
 		public void CanGrowBeyondInitialSize_Root()
 		{
 			var buffer = new byte[1024 * 512];
@@ -44,13 +44,13 @@ namespace Voron.Tests.Storage
 				{
 					for (int j = 0; j < 12; j++)
 					{
-						tx.State.Root.Add(string.Format("{0:000}-{1:000}", j, i), new MemoryStream(buffer));
+						tx.Root.Add			(string.Format("{0:000}-{1:000}", j, i), new MemoryStream(buffer));
 					}
 					tx.Commit();
 				}
 			}
 		}
-		[Fact]
+		[PrefixesFact]
 		public void CanGrowBeyondInitialSize_WithAnotherTree()
 		{
 			using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
@@ -68,7 +68,7 @@ namespace Voron.Tests.Storage
 
 					for (int j = 0; j < 12; j++)
 					{
-						tx.State.Root.Add(string.Format("{0:000}-{1:000}", j, i), new MemoryStream(buffer));
+						tx.Root.Add			(string.Format("{0:000}-{1:000}", j, i), new MemoryStream(buffer));
 					}
 					tx.Commit();
 				}

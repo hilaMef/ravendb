@@ -26,7 +26,7 @@ namespace Voron.Tests.Bugs
         }
 
         //Voron must support this in order to support MultiAdd() with values > 2000 characters
-        [Fact]
+        [PrefixesFact]
         public void TreeAdds_WithVeryLargeKey()
         {
             using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
@@ -43,7 +43,7 @@ namespace Voron.Tests.Bugs
 
             using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
             {
-                var tree = tx.Environment.State.GetTree(tx, "foo");
+                var tree = tx.Environment.CreateTree(tx, "foo");
                 for (int index = 0; index < inputData.Count; index++)
                 {
                     var keyString = inputData[index];
@@ -54,7 +54,7 @@ namespace Voron.Tests.Bugs
             }
         }
 
-        [Fact]
+        [PrefixesFact]
         public void PageSplitterShouldCalculateSeparatorKeyCorrectly()
         {
             var ids = ReadIds("data.txt");
@@ -74,7 +74,7 @@ namespace Voron.Tests.Bugs
                     {
                         foreach (var treeName in trees)
                         {
-                            var tree = tx.Environment.State.GetTree(tx, treeName);
+                            var tree = tx.Environment.CreateTree(tx, treeName);
 
                             tree.Add(id, new MemoryStream(testBuffer));
                         }
@@ -89,7 +89,7 @@ namespace Voron.Tests.Bugs
             }
         }
 
-        [Fact]
+        [PrefixesFact]
         public void PageSplitter_SmallRun()
         {
             var ids = ReadIds("data.txt", 35);
@@ -107,7 +107,7 @@ namespace Voron.Tests.Bugs
                 {
                     foreach (var treeName in trees)
                     {
-                        var tree = tx.Environment.State.GetTree(tx, treeName);
+                        var tree = tx.Environment.CreateTree(tx, treeName);
 
                         tree.Add(id, new MemoryStream(testBuffer));
 
@@ -125,7 +125,7 @@ namespace Voron.Tests.Bugs
             ValidateRecords(env, trees, ids);
         }
 
-        [Fact]
+        [PrefixesFact]
         public void PageSplitterShouldCalculateSeparatorKeyCorrectly2()
         {
             var ids = ReadIds("data2.txt");
@@ -146,7 +146,7 @@ namespace Voron.Tests.Bugs
                     {
                         foreach (var treeName in trees)
                         {
-                            var tree = tx.Environment.State.GetTree(tx, treeName);
+                            var tree = tx.Environment.CreateTree(tx, treeName);
                             tree.Add(id, new MemoryStream(testBuffer));
                         }
 
@@ -186,7 +186,7 @@ namespace Voron.Tests.Bugs
                         }
                         while (iterator.MoveNext());
 
-                        Assert.Equal(ids.Count, snapshot.Transaction.Environment.State.GetTree(snapshot.Transaction, tree).State.EntriesCount);
+                        Assert.Equal(ids.Count, snapshot.Transaction.Environment.CreateTree(snapshot.Transaction, tree).State.EntriesCount);
                         Assert.Equal(ids.Count, count);
                         Assert.Equal(ids.Count, keys.Count);
                     }
@@ -211,7 +211,7 @@ namespace Voron.Tests.Bugs
             }
         }
 
-		[Fact]
+		[PrefixesFact]
 	    public void ShouldNotThrowPageFullExceptionDuringPageSplit()
 	    {
 			using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
@@ -262,17 +262,17 @@ namespace Voron.Tests.Bugs
 				tree.Add("29", normal);
 				tree.Add("30", normal);
 
-				DebugStuff.RenderAndShow(tx, tree.State.RootPageNumber, 1);
+				DebugStuff.RenderAndShow(tx, tree.State.RootPageNumber);
 
 				const int toInsert = 230;
 
 				tree.Add("20", new byte[toInsert]);
 
-				DebugStuff.RenderAndShow(tx, tree.State.RootPageNumber, 1);
+				DebugStuff.RenderAndShow(tx, tree.State.RootPageNumber);
 			}
 	    }
 
-	    [Fact]
+	    [PrefixesFact]
 	    public void ShouldNotThrowPageFullExceptionDuringPageSplit2()
 	    {
 		    using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))

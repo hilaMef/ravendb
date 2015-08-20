@@ -11,6 +11,7 @@ import resource = require("models/resource");
 import getOperationAlertsCommand = require("commands/getOperationAlertsCommand");
 import dismissAlertCommand = require("commands/dismissAlertCommand");
 import filesystem = require("models/filesystem/filesystem");
+import recentQueriesStorage = require("common/recentQueriesStorage");
 
 class resources extends viewModelBase {
     resources: KnockoutComputed<resource[]>;
@@ -131,6 +132,7 @@ class resources extends viewModelBase {
     }
 
     attached() {
+		super.attached();
         this.updateHelpLink('Z8DC3Q');
         ko.postbox.publish("SetRawJSONUrl", appUrl.forDatabasesRawData());
         this.resourcesLoaded();
@@ -205,6 +207,7 @@ class resources extends viewModelBase {
 
             if (!!databaseInArray) {
                 this.databases.remove(databaseInArray);
+	            recentQueriesStorage.removeRecentQueries(databaseInArray);
             }
         } else if (rs.type == filesystem.type) {
             var fileSystemInArray = this.fileSystems.first((fs: filesystem) => fs.name == rs.name);
@@ -259,7 +262,7 @@ class resources extends viewModelBase {
 
                 disableDatabaseToggleViewModel.disableToggleTask
                     .done((toggledResources: resource[]) => {
-                        if (resources.length == 1) {
+                        if (resources.length === 1) {
                             this.onResourceDisabledToggle(resources[0], action);
                         } else {
                             toggledResources.forEach(rs => {
@@ -277,6 +280,10 @@ class resources extends viewModelBase {
         if (!!rs) {
             rs.disabled(action);
             rs.isChecked(false);
+
+            if (rs.isSelected() && rs.disabled() === false) {
+                rs.activate();  
+            }
         }
     }
 
@@ -308,6 +315,7 @@ class resources extends viewModelBase {
     navigateToAdminSettings() {
         this.navigate(this.appUrls.adminSettings());
         shell.disconnectFromResourceChangesApi();
+        shell.selectedEnvironmentColorStatic(shell.originalEnviromentColor());
     }
 
     dismissAlert(uniqueKey: string) {

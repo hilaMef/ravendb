@@ -17,7 +17,7 @@ namespace Voron.Tests.Storage
 			options.MaxStorageSize = 1024 * 1024 * 1; // 1MB
 		}
 
-		[Fact]
+		[PrefixesFact]
 		public void ShouldThrowQuotaException()
 		{
 			var quotaEx = Assert.Throws<QuotaException>(() =>
@@ -27,7 +27,7 @@ namespace Voron.Tests.Storage
 				{
 					for (int i = 0; i < 1024; i++)
 					{
-						tx.State.Root.Add("items/" + i, new MemoryStream(new byte[1024]));
+						tx.Root.Add			("items/" + i, new MemoryStream(new byte[1024]));
 					}
 
 					tx.Commit();

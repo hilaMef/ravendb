@@ -15,13 +15,13 @@ namespace Voron.Tests.Storage
 
     public class Batches : StorageTest
     {
-        [Fact]
+        [PrefixesFact]
         public void ReadVersion_Items_From_Both_WriteBatch_And_Snapshot()
         {
             using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
             {
                 Env.CreateTree(tx, "tree");
-                tx.Environment.State.GetTree(tx,"tree").Add("foo1", StreamFor("foo1"));
+                tx.Environment.CreateTree(tx,"tree").Add("foo1", StreamFor("foo1"));
 
                 tx.Commit();
             }
@@ -42,13 +42,13 @@ namespace Voron.Tests.Storage
             }
         }
 
-        [Fact]
+        [PrefixesFact]
         public void ReadVersion_Items_From_Both_WriteBatch_And_Snapshot_WithoutVersionNumber()
         {
             using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
             {
                 Env.CreateTree(tx, "tree");
-                tx.Environment.State.GetTree(tx,"tree").Add("foo1", StreamFor("foo1"));
+                tx.Environment.CreateTree(tx,"tree").Add("foo1", StreamFor("foo1"));
 
                 tx.Commit();
             }
@@ -69,13 +69,13 @@ namespace Voron.Tests.Storage
             }
         }
 
-        [Fact]
+        [PrefixesFact]
         public void Read_Items_From_Both_WriteBatch_And_Snapshot()
         {
             using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
             {
                 Env.CreateTree(tx, "tree");
-                tx.Environment.State.GetTree(tx,"tree").Add("foo1", StreamFor("foo1"));
+                tx.Environment.CreateTree(tx,"tree").Add("foo1", StreamFor("foo1"));
 
                 tx.Commit();
             }
@@ -98,13 +98,13 @@ namespace Voron.Tests.Storage
             }
         }
 
-        [Fact]
+        [PrefixesFact]
         public void Read_Items_From_Both_WriteBatch_And_Snapshot_Deleted_Key_Returns_Null()
         {
             using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
             {
                 Env.CreateTree(tx, "tree");
-                tx.Environment.State.GetTree(tx,"tree").Add("foo1", StreamFor("foo1"));
+                tx.Environment.CreateTree(tx,"tree").Add("foo1", StreamFor("foo1"));
 
                 tx.Commit();
             }
@@ -124,13 +124,13 @@ namespace Voron.Tests.Storage
             }
         }
 
-        [Fact]
+        [PrefixesFact]
         public void WhenLastBatchOperationVersionIsNullThenVersionComesFromStorage()
         {
             using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
             {
                 Env.CreateTree(tx, "tree");
-                tx.Environment.State.GetTree(tx,"tree").Add("foo1", StreamFor("foo1"));
+                tx.Environment.CreateTree(tx,"tree").Add("foo1", StreamFor("foo1"));
 
                 tx.Commit();
             }
@@ -157,13 +157,13 @@ namespace Voron.Tests.Storage
         }
 
         //if item with the same key is in both tree and writebatch, it can be assumed that the item in write batch has priority, and it will be returned
-        [Fact]
+        [PrefixesFact]
         public void Read_The_Same_Item_Both_WriteBatch_And_Snapshot_WriteBatch_Takes_Precedence()
         {
             using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
             {
                 Env.CreateTree(tx, "tree");
-                tx.Environment.State.GetTree(tx,"tree").Add("foo1", StreamFor("foo1"));
+                tx.Environment.CreateTree(tx,"tree").Add("foo1", StreamFor("foo1"));
 
                 tx.Commit();
             }
@@ -184,20 +184,20 @@ namespace Voron.Tests.Storage
             }
         }
 
-        [Fact]
+        [PrefixesFact]
         public void ReadVersion_The_Same_Item_Both_WriteBatch_And_Snapshot_WriteBatch_Takes_Precedence()
         {
             using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
             {
                 Env.CreateTree(tx, "tree");
-                tx.Environment.State.GetTree(tx,"tree").Add("foo1", StreamFor("foo1"));
+                tx.Environment.CreateTree(tx,"tree").Add("foo1", StreamFor("foo1"));
 
                 tx.Commit();
             }
 
             using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
             {
-                tx.Environment.State.GetTree(tx,"tree").Add("foo1", StreamFor("updated foo1"));
+                tx.Environment.CreateTree(tx,"tree").Add("foo1", StreamFor("updated foo1"));
 
                 tx.Commit();
             }
@@ -216,7 +216,7 @@ namespace Voron.Tests.Storage
             }
         }
 
-        [Fact]
+        [PrefixesFact]
         public void SingleItemBatchTest()
         {
             var batch = new WriteBatch();
@@ -226,12 +226,12 @@ namespace Voron.Tests.Storage
 
             using (var tx = Env.NewTransaction(TransactionFlags.Read))
             {
-                var stream = tx.State.Root.Read("key/1");
+                var stream = tx.Root.Read("key/1");
                 Assert.Equal("123", stream.Reader.ToStringValue());
             }
         }
 
-        [Fact]
+        [PrefixesFact]
         public void MultipleItemBatchTest()
         {
             int numberOfItems = 10000;
@@ -249,14 +249,14 @@ namespace Voron.Tests.Storage
                 for (int i = 0; i < numberOfItems; i++)
                 {
                     {
-                        var result = tx.State.Root.Read("key/" + i).Reader.ToStringValue();
+                        var result = tx.Root.Read("key/" + i).Reader.ToStringValue();
                         Assert.Equal(i.ToString(CultureInfo.InvariantCulture), result);
                     }
                 }
             }
         }
 
-        [Fact]
+        [PrefixesFact]
         public async Task MultipleBatchesTest()
         {
             int numberOfItems = 10000;
@@ -275,17 +275,17 @@ namespace Voron.Tests.Storage
             {
                 for (int i = 0; i < numberOfItems; i++)
                 {
-                    var result = tx.State.Root.Read("key/" + i).Reader.ToStringValue();
+                    var result = tx.Root.Read("key/" + i).Reader.ToStringValue();
                     Assert.Equal(i.ToString(CultureInfo.InvariantCulture), result);
 
-                    result = tx.State.Root.Read("yek/" + i).Reader.ToStringValue();
+                    result = tx.Root.Read("yek/" + i).Reader.ToStringValue();
                     Assert.Equal(i.ToString(CultureInfo.InvariantCulture), result);
 
                 }
             }
         }
 
-        [Fact]
+        [PrefixesFact]
         public async Task MultipleTreesTest()
         {
             int numberOfItems = 10000;
@@ -313,15 +313,15 @@ namespace Voron.Tests.Storage
             {
                 for (int i = 0; i < numberOfItems; i++)
                 {
-                    var result = tx.Environment.State.GetTree(tx,"tree1").Read("key/" + i).Reader.ToStringValue();
+                    var result = tx.Environment.CreateTree(tx,"tree1").Read("key/" + i).Reader.ToStringValue();
                     Assert.Equal(i.ToString(CultureInfo.InvariantCulture), result);
-                    result = tx.Environment.State.GetTree(tx,"tree2").Read("yek/" + i).Reader.ToStringValue();
+                    result = tx.Environment.CreateTree(tx,"tree2").Read("yek/" + i).Reader.ToStringValue();
                     Assert.Equal(i.ToString(CultureInfo.InvariantCulture), result);
                 }
             }
         }
 
-        [Fact]
+        [PrefixesFact]
         public void MultipleTreesInSingleBatch()
         {
             var batch = new WriteBatch();
@@ -341,14 +341,14 @@ namespace Voron.Tests.Storage
 
             using (var tx = Env.NewTransaction(TransactionFlags.Read))
             {
-                var result = tx.Environment.State.GetTree(tx,"tree1").Read("key/1").Reader.ToStringValue();
+                var result = tx.Environment.CreateTree(tx,"tree1").Read("key/1").Reader.ToStringValue();
                 Assert.Equal("tree1", result);
-                result = tx.Environment.State.GetTree(tx,"tree2").Read("key/1").Reader.ToStringValue();
+                result = tx.Environment.CreateTree(tx,"tree2").Read("key/1").Reader.ToStringValue();
                 Assert.Equal("tree2", result);
             }
         }
 
-        [Fact]
+        [PrefixesFact]
         public async Task BatchErrorHandling()
         {
             var batch1 = new WriteBatch();
@@ -380,15 +380,15 @@ namespace Voron.Tests.Storage
 
                 using (var tx = Env.NewTransaction(TransactionFlags.Read))
                 {
-                    var result = tx.Environment.State.GetTree(tx,"tree1").Read("key/1").Reader.ToStringValue();
+                    var result = tx.Environment.CreateTree(tx,"tree1").Read("key/1").Reader.ToStringValue();
                     Assert.Equal("tree1", result);
-                    result = tx.Environment.State.GetTree(tx,"tree3").Read("key/1").Reader.ToStringValue();
+                    result = tx.Environment.CreateTree(tx,"tree3").Read("key/1").Reader.ToStringValue();
                     Assert.Equal("tree3", result);
                 }
             }
         }
 
-        [Fact]
+        [PrefixesFact]
         public async Task MergedBatchErrorHandling()
         {
             var batch1 = new WriteBatch();
@@ -431,10 +431,10 @@ namespace Voron.Tests.Storage
 
             using (var tx = Env.NewTransaction(TransactionFlags.Read))
             {
-                var result = tx.Environment.State.GetTree(tx,"tree1").Read("key/1").Reader.ToStringValue();
+                var result = tx.Environment.CreateTree(tx,"tree1").Read("key/1").Reader.ToStringValue();
                 Assert.Equal("tree1", result);
 
-                result = tx.Environment.State.GetTree(tx,"tree3").Read("key/1").Reader.ToStringValue();
+                result = tx.Environment.CreateTree(tx,"tree3").Read("key/1").Reader.ToStringValue();
                 Assert.Equal("tree3", result);
             }
         }

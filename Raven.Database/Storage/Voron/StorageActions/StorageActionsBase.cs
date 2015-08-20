@@ -110,6 +110,15 @@ namespace Raven.Database.Storage.Voron.StorageActions
             return CreateKey(item1.ToString(), item2.ToString());
         }
 
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected Slice CreateViewKey(int view)
+        {
+            var sliceWriter = new SliceWriter(4);
+            sliceWriter.WriteBigEndian(view);
+            return sliceWriter.CreateSlice();
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected static string CreateKey<T>(T value)
         {
@@ -237,7 +246,7 @@ namespace Raven.Database.Storage.Voron.StorageActions
 
         protected BufferPoolMemoryStream CreateStream()
         {
-            return new BufferPoolMemoryStream(bufferPool);
+            return new BufferPoolMemoryStream();
         }
 	}
 }

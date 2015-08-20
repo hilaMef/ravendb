@@ -10,23 +10,23 @@ namespace Voron.Tests.Trees
 {
 	public unsafe class Iteration : StorageTest
 	{
-		[Fact]
+		[PrefixesFact]
 		public void EmptyIterator()
 		{
 			using (var tx = Env.NewTransaction(TransactionFlags.Read))
 			{
-				var iterator = tx.State.Root.Iterate();
+				var iterator = tx.Root.Iterate();
 				Assert.False(iterator.Seek(Slice.BeforeAllKeys));
 			}
 
 			using (var tx = Env.NewTransaction(TransactionFlags.Read))
 			{
-				var iterator = tx.State.Root.Iterate();
+				var iterator = tx.Root.Iterate();
 				Assert.False(iterator.Seek(Slice.AfterAllKeys));
 			}
 		}
 
-		[Fact]
+		[PrefixesFact]
 		public void CanIterateInOrder()
 		{
 			var random = new Random();
@@ -37,7 +37,7 @@ namespace Voron.Tests.Trees
 			{
 				for (int i = 0; i < 25; i++)
 				{
-					tx.State.Root.Add(i.ToString("0000"), new MemoryStream(buffer));
+					tx.Root.Add			(i.ToString("0000"), new MemoryStream(buffer));
 				}
 
 				tx.Commit();
@@ -45,7 +45,7 @@ namespace Voron.Tests.Trees
 
 			using (var tx = Env.NewTransaction(TransactionFlags.Read))
 			{
-				var iterator = tx.State.Root.Iterate();
+				var iterator = tx.Root.Iterate();
 				Assert.True(iterator.Seek(Slice.BeforeAllKeys));
 
 				for (int i = 0; i < 24; i++)

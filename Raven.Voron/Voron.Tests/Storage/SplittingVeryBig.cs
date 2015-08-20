@@ -16,7 +16,7 @@ namespace Voron.Tests.Storage
 			options.MaxLogFileSize = 10 * AbstractPager.PageSize;
 		}
 
-		[Fact]
+		[PrefixesFact]
 		public void ShouldBeAbleToWriteValuesGreaterThanLogAndReadThem()
 		{
 			var random = new Random(1234);
@@ -31,13 +31,13 @@ namespace Voron.Tests.Storage
 
 			using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
 			{
-				tx.Environment.State.GetTree(tx,"tree").Add("key1", new MemoryStream(buffer));
+				tx.Environment.CreateTree(tx,"tree").Add("key1", new MemoryStream(buffer));
 				tx.Commit();
 			}
 
 			using (var tx = Env.NewTransaction(TransactionFlags.Read))
 			{
-			    var read = tx.Environment.State.GetTree(tx,"tree").Read("key1");
+			    var read = tx.Environment.CreateTree(tx,"tree").Read("key1");
 			    Assert.NotNull(read);
 
 			    var reader = read.Reader;
@@ -47,7 +47,7 @@ namespace Voron.Tests.Storage
 			}
 		}
 
-		[Fact]
+		[PrefixesFact]
 		public void ShouldBeAbleToWriteValuesGreaterThanLogAndRecoverThem()
 		{
 			DeleteDirectory("test2.data");
@@ -69,7 +69,7 @@ namespace Voron.Tests.Storage
 
 				using (var tx = env.NewTransaction(TransactionFlags.ReadWrite))
 				{
-					tx.Environment.State.GetTree(tx,"tree").Add("key1", new MemoryStream(buffer));
+					tx.Environment.CreateTree(tx,"tree").Add("key1", new MemoryStream(buffer));
 					tx.Commit();
 				}
 			}
@@ -87,7 +87,7 @@ namespace Voron.Tests.Storage
 
 				using (var tx = env.NewTransaction(TransactionFlags.Read))
 				{
-					var read = tx.Environment.State.GetTree(tx,"tree").Read("key1");
+					var read = tx.Environment.CreateTree(tx,"tree").Read("key1");
 					Assert.NotNull(read);
 
 					{

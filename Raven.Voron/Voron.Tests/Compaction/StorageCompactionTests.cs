@@ -22,7 +22,7 @@ namespace Voron.Tests.Compaction
 			Clean();
 		}
 
-		[Fact]
+		[PrefixesFact]
 		public void CompactionMustNotLooseAnyData()
 		{
 			var treeNames = new List<string>();
@@ -51,7 +51,7 @@ namespace Voron.Tests.Compaction
 						string name = "tree/" + i;
 						treeNames.Add(name);
 
-						var tree = env.State.GetTree(tx, name);
+						var tree = env.CreateTree(tx, name);
 
 						for (int j = 0; j < recordCount; j++)
 						{
@@ -92,7 +92,7 @@ namespace Voron.Tests.Compaction
 				{
 					foreach (var treeName in treeNames)
 					{
-						var tree = compacted.State.GetTree(tx, treeName);
+						var tree = compacted.CreateTree(tx, treeName);
 
 						for (int i = 0; i < recordCount; i++)
 						{
@@ -119,7 +119,7 @@ namespace Voron.Tests.Compaction
 
 					foreach (var treeName in multiValueTreeNames)
 					{
-						var tree = compacted.State.GetTree(tx, treeName);
+						var tree = compacted.CreateTree(tx, treeName);
 
 						for (int i = 0; i < multiValueRecordsCount; i++)
 						{
@@ -141,7 +141,7 @@ namespace Voron.Tests.Compaction
 			}
 		}
 
-		[Fact]
+		[PrefixesFact]
 		public void ShouldOccupyLessSpace()
 		{
 			var r = new Random();
@@ -184,7 +184,7 @@ namespace Voron.Tests.Compaction
 			Assert.True(newSize < oldSize, string.Format("Old size: {0:#,#;;0} MB, new size {1:#,#;;0} MB", oldSize / 1024 / 1024, newSize / 1024 / 1024));
 		}
 
-		[Fact]
+		[PrefixesFact]
 		public void CannotCompactStorageIfIncrementalBackupEnabled()
 		{
 			var envOptions = StorageEnvironmentOptions.ForPath(CompactionTestsData);
@@ -210,7 +210,7 @@ namespace Voron.Tests.Compaction
 			Assert.Equal(StorageCompaction.CannotCompactBecauseOfIncrementalBackup, invalidOperationException.Message);
 		}
 
-		[Fact]
+		[PrefixesFact]
 		public void ShouldDeleteCurrentJournalEvenThoughItHasAvailableSpace()
 		{
 			using (var env = new StorageEnvironment(StorageEnvironmentOptions.ForPath(CompactionTestsData)))
@@ -247,7 +247,7 @@ namespace Voron.Tests.Compaction
 			}
 		}
 
-		[Fact]
+		[PrefixesFact]
 		public void ShouldReportProgress()
 		{
 			using (var env = new StorageEnvironment(StorageEnvironmentOptions.ForPath(CompactionTestsData)))

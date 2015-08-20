@@ -19,34 +19,34 @@ namespace Voron.Tests.Journal
 			options.MaxLogFileSize = 10 * AbstractPager.PageSize;
 		}
 
-		[Fact]
+		[PrefixesFact]
 		public void TransactionCommitShouldSetCurrentLogFileToNullIfItIsFull()
 		{
 			using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
 			{
 				var bytes = new byte[4 * AbstractPager.PageSize]; 
-				tx.State.Root.Add("items/0", new MemoryStream(bytes));
+				tx.Root.Add			("items/0", new MemoryStream(bytes));
 				tx.Commit();
 			}
 
 			using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
 			{
 				var bytes = new byte[1 * AbstractPager.PageSize];
-				tx.State.Root.Add("items/1", new MemoryStream(bytes));
+				tx.Root.Add			("items/1", new MemoryStream(bytes));
 				tx.Commit();
 			}
 
 			using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
 			{
 				var bytes = new byte[1 * AbstractPager.PageSize];
-				tx.State.Root.Add("items/1", new MemoryStream(bytes));
+				tx.Root.Add			("items/1", new MemoryStream(bytes));
 				tx.Commit();
 			}
 
 			using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
 			{
 				var bytes = new byte[1 * AbstractPager.PageSize];
-				tx.State.Root.Add("items/1", new MemoryStream(bytes));
+				tx.Root.Add			("items/1", new MemoryStream(bytes));
 				tx.Commit();
 			}
 

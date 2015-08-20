@@ -11,7 +11,7 @@ namespace Voron.Tests.Bugs
 
 	public class InvalidReleasesOfScratchPages : StorageTest
 	{
-		[Fact]
+		[PrefixesFact]
 		public void ReadTransactionCanReadJustCommittedValue()
 		{
 			var options = StorageEnvironmentOptions.CreateMemoryOnly();
@@ -22,12 +22,12 @@ namespace Voron.Tests.Bugs
 
 				using (var txw = env.NewTransaction(TransactionFlags.ReadWrite))
 				{
-					txw.Environment.State.GetTree(txw, "tree0").Add("key/1", new MemoryStream());
+					txw.Environment.CreateTree(txw, "tree0").Add("key/1", new MemoryStream());
 					txw.Commit();
 
 					using (var txr = env.NewTransaction(TransactionFlags.Read))
 					{
-						Assert.NotNull(txr.Environment.State.GetTree(txr, "tree0").Read("key/1"));
+						Assert.NotNull(txr.Environment.CreateTree(txr, "tree0").Read("key/1"));
 					}
 				}
 			}
@@ -38,7 +38,7 @@ namespace Voron.Tests.Bugs
 			options.MaxScratchBufferSize *= 2;
 		}
 
-		[Fact]
+		[PrefixesFact]
 		public void ParallelWritesInBatchesAndReadsByUsingTreeIterator()
 		{
 			const int numberOfWriteThreads = 10;
@@ -135,7 +135,7 @@ namespace Voron.Tests.Bugs
 			}
 		}
 
-		[Fact]
+		[PrefixesFact]
 		public void AllScratchPagesShouldBeReleased()
 		{
 			var options = StorageEnvironmentOptions.CreateMemoryOnly();
@@ -151,7 +151,7 @@ namespace Voron.Tests.Bugs
 
 				using (var txw = env.NewTransaction(TransactionFlags.ReadWrite))
 				{
-					var tree = txw.Environment.State.GetTree(txw, "test");
+					var tree = txw.Environment.CreateTree(txw, "test");
 
 					tree.Add("key/1", new MemoryStream(new byte[100]));
 					tree.Add("key/1", new MemoryStream(new byte[200]));

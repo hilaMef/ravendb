@@ -419,24 +419,26 @@ namespace Raven.Database.Storage
             return value;
         }
 
-        public IndexCreationOptions FindIndexCreationOptions(IndexDefinition indexDef)
+        public IndexCreationOptions FindIndexCreationOptions(IndexDefinition newIndexDef)
         {
-            var indexDefinition = GetIndexDefinition(indexDef.Name);
-            if (indexDefinition != null)
-            {
-				if (indexDefinition.IsTestIndex) // always update test indexes
-					return IndexCreationOptions.Update;
+            var currentIndexDefinition = GetIndexDefinition(newIndexDef.Name);
+	        if (currentIndexDefinition == null)
+				return IndexCreationOptions.Create;
 
-                indexDef.IndexId = indexDefinition.IndexId;
-                bool result = indexDefinition.Equals(indexDef);
-                return result
-                           ? IndexCreationOptions.Noop
-                           : IndexCreationOptions.Update;
-            }
-            return IndexCreationOptions.Create;
+	        if (currentIndexDefinition.IsTestIndex) // always update test indexes
+		        return IndexCreationOptions.Update;
+
+	        newIndexDef.IndexId = currentIndexDefinition.IndexId;
+	        var result = currentIndexDefinition.Equals(newIndexDef);
+	        if (result)
+		        return IndexCreationOptions.Noop;
+
+	        // try to compare to find changes which doesn't require removing compiled index
+	        return currentIndexDefinition.Equals(newIndexDef, ignoreFormatting: true, ignoreMaxIndexOutput: true)
+		        ? IndexCreationOptions.UpdateWithoutUpdatingCompiledIndex : IndexCreationOptions.Update;
         }
 
-        public bool Contains(string indexName)
+		public bool Contains(string indexName)
         {
             return indexNameToId.ContainsKey(indexName);
         }
@@ -536,15 +538,14 @@ namespace Raven.Database.Storage
 		internal bool ReplaceIndex(string indexName, string indexToSwapName)
 		{
 			var index = GetIndexDefinition(indexName);
-			var indexToReplace = GetIndexDefinition(indexToSwapName);
-
-			if (index == null) 
+			if (index == null)
 				return false;
 
 			int _;
 			indexNameToId.TryRemove(index.Name, out _);
+			index.IsSideBySideIndex = false;
 
-		    index.IsSideBySideIndex = false;
+			var indexToReplace = GetIndexDefinition(indexToSwapName);
 			index.Name = indexToReplace != null ? indexToReplace.Name : indexToSwapName;
 			CreateAndPersistIndex(index);
 			AddIndex(index.IndexId, index);
@@ -581,6 +582,17 @@ namespace Raven.Database.Storage
 
             File.WriteAllText(Path.Combine(path, "transformers.txt"), sb.ToString());
         }
+
+		public void UpdateTransformerDefinitionWithoutUpdatingCompiledTransformer(TransformerDefinition definition)
+		{
+			transformDefinitions.AddOrUpdate(definition.TransfomerId, s =>
+			{
+				throw new InvalidOperationException(
+					"Cannot find transformer named: " +
+					definition.TransfomerId);
+			}, (s, transformerDefinition) => definition);
+			WriteTransformerDefinition(definition);
+		}
     }
 
 }

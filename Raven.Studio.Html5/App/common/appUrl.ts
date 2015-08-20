@@ -75,6 +75,7 @@ class appUrl {
         sqlReplicationsConnections: ko.computed(() => appUrl.forSqlReplicationConnections(appUrl.currentDatabase())),
         scriptedIndexes: ko.computed(() => appUrl.forScriptedIndexes(appUrl.currentDatabase())),
         customFunctionsEditor: ko.computed(() => appUrl.forCustomFunctionsEditor(appUrl.currentDatabase())),
+        databaseStudioConfig: ko.computed(() => appUrl.forDatabaseStudioConfig(appUrl.currentDatabase())),
 
         statusDebug: ko.computed(() => appUrl.forStatusDebug(appUrl.currentDatabase())),
         statusDebugChanges: ko.computed(() => appUrl.forStatusDebugChanges(appUrl.currentDatabase())),
@@ -92,6 +93,7 @@ class appUrl {
         statusDebugPersistAutoIndex: ko.computed(() => appUrl.forStatusDebugPersistAutoIndex(appUrl.currentDatabase())),
         statusDebugExplainReplication: ko.computed(() => appUrl.forStatusDebugExplainReplication(appUrl.currentDatabase())),
         infoPackage: ko.computed(() => appUrl.forInfoPackage(appUrl.currentDatabase())),
+        dataSubscriptions: ko.computed(() => appUrl.forDataSubscriptions(appUrl.currentDatabase())),
 
         statusStorageOnDisk: ko.computed(() => appUrl.forStatusStorageOnDisk(appUrl.currentDatabase())),
         statusStorageBreakdown: ko.computed(() => appUrl.forStatusStorageBreakdown(appUrl.currentDatabase())),
@@ -184,6 +186,10 @@ class appUrl {
     static forTrafficWatch(): string {
         return "#admin/settings/trafficWatch";
     }
+
+	static forLicenseInformation(): string {
+		return "#admin/settings/licenseInformation";
+	}
 
     static forDebugInfo(): string {
         return "#admin/settings/debugInfo";
@@ -404,6 +410,10 @@ class appUrl {
         return url;
     }
 
+    static forDataSubscriptions(db: database): string {
+        return "#databases/status/debug/dataSubscriptions?" + appUrl.getEncodedDbPart(db);
+    }
+
     static forDatabaseSettings(db: database): string {
         return "#databases/settings/databaseSettings?" + appUrl.getEncodedDbPart(db);
     }
@@ -443,6 +453,9 @@ class appUrl {
 
     static forCustomFunctionsEditor(db: database): string {
         return "#databases/settings/customFunctionsEditor?" + appUrl.getEncodedDbPart(db);
+    }
+    static forDatabaseStudioConfig(db: database): string {
+        return "#databases/settings/databaseStudioConfig?" + appUrl.getEncodedDbPart(db);
     }
 
     static forDocuments(collection: string, db: database): string {

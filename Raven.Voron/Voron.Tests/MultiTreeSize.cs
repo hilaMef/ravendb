@@ -11,12 +11,12 @@ namespace Voron.Tests
 {
 	public class MultiTreeSize : StorageTest
 	{
-		[Fact]
+		[PrefixesFact]
 		public void Single_AddMulti_WillUseOnePage()
 		{
 			using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
 			{
-				tx.State.Root.MultiAdd("ChildTreeKey", "test");
+				tx.Root.MultiAdd("ChildTreeKey", "test");
 				tx.Commit();
 			}
 
@@ -25,13 +25,13 @@ namespace Voron.Tests
 			);
 		}
 
-		[Fact]
+		[PrefixesFact]
 		public void TwoSmall_AddMulti_WillUseOnePage()
 		{
 			using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
 			{
-				tx.State.Root.MultiAdd("ChildTreeKey", "test1");
-				tx.State.Root.MultiAdd("ChildTreeKey", "test2");
+				tx.Root.MultiAdd("ChildTreeKey", "test1");
+				tx.Root.MultiAdd("ChildTreeKey", "test2");
 				tx.Commit();
 			}
 

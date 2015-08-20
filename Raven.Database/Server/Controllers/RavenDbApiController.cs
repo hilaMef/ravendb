@@ -46,7 +46,8 @@ namespace Raven.Database.Server.Controllers
 		{
 			DatabaseName = other.DatabaseName;
 			queryFromPostRequest = other.queryFromPostRequest;
-			Configuration = other.Configuration;
+			if (other.Configuration != null)
+				Configuration = other.Configuration;
 			ControllerContext = other.ControllerContext;
 			ActionContext = other.ActionContext;
 		}
@@ -216,6 +217,12 @@ namespace Raven.Database.Server.Controllers
 
                 return _currentDb = database.Result;
 			}
+		}
+
+		public void SetCurrentDatabase(DocumentDatabase db)
+		{
+			DatabaseName = db.Name;
+			_currentDb = db;
 		}
 
 	    public override InMemoryRavenConfiguration ResourceConfiguration
@@ -545,7 +552,7 @@ namespace Raven.Database.Server.Controllers
 		}
 
 
-        public override bool SetupRequestToProperDatabase(RequestManager rm)
+        public override bool TrySetupRequestToProperResource(out RequestWebApiEventArgs args)
         {
             var tenantId = this.DatabaseName;
             var landlord = this.DatabasesLandlord;
@@ -554,7 +561,7 @@ namespace Raven.Database.Server.Controllers
             {                
                 landlord.LastRecentlyUsed.AddOrUpdate("System", SystemTime.UtcNow, (s, time) => SystemTime.UtcNow);
 
-                var args = new BeforeRequestWebApiEventArgs
+                args = new RequestWebApiEventArgs
                 {
                     Controller = this,
                     IgnoreRequest = false,
@@ -562,7 +569,6 @@ namespace Raven.Database.Server.Controllers
                     Database = landlord.SystemDatabase
                 };
 
-                rm.OnBeforeRequest(args);
                 if (args.IgnoreRequest)
                     return false;
                 return true;
@@ -609,7 +615,7 @@ namespace Raven.Database.Server.Controllers
 						}
 					}
 
-                    var args = new BeforeRequestWebApiEventArgs()
+                    args = new RequestWebApiEventArgs()
                     {
                         Controller = this,
                         IgnoreRequest = false,
@@ -617,7 +623,6 @@ namespace Raven.Database.Server.Controllers
                         Database = resourceStoreTask.Result
                     };
 
-                    rm.OnBeforeRequest(args);
                     if (args.IgnoreRequest)
                         return false;
                 }
@@ -663,6 +668,21 @@ namespace Raven.Database.Server.Controllers
 	            return values.All(x => string.IsNullOrEmpty(x) == false && (x[0] != '1' && x[0] != '2'));
 	        }
 	    }
+
+		protected Etag GetLastDocEtag()
+		{
+			var lastDocEtag = Etag.Empty;
+			long documentsCount = 0;
+			Database.TransactionalStorage.Batch(
+				accessor =>
+				{
+					lastDocEtag = accessor.Staleness.GetMostRecentDocumentEtag();
+					documentsCount = accessor.Documents.GetDocumentsCount();
+				});
+
+			lastDocEtag = lastDocEtag.HashWith(BitConverter.GetBytes(documentsCount));
+			return lastDocEtag;
+		}
 
 		protected class TenantData
 		{
@@ -763,7 +783,7 @@ namespace Raven.Database.Server.Controllers
 
 		protected bool CanExposeConfigOverTheWire()
 		{
-			if (SystemConfiguration.ExposeConfigOverTheWire == "AdminOnly" && SystemConfiguration.AnonymousUserAccessMode == AnonymousUserAccessMode.None)
+			if (string.Equals(SystemConfiguration.ExposeConfigOverTheWire, "AdminOnly", StringComparison.OrdinalIgnoreCase) && SystemConfiguration.AnonymousUserAccessMode != AnonymousUserAccessMode.Admin)
 			{
 				var authorizer = (MixedModeRequestAuthorizer)ControllerContext.Configuration.Properties[typeof(MixedModeRequestAuthorizer)];
 				var user = authorizer.GetUser(this);

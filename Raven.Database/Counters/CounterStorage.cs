@@ -5,7 +5,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
-using Newtonsoft.Json;
+using System.Threading;
+using Raven.Imports.Newtonsoft.Json;
 using Raven.Abstractions;
 using Raven.Abstractions.Counters;
 using Raven.Abstractions.Util;
@@ -20,7 +21,6 @@ using Voron.Trees;
 using Voron.Util;
 using Voron.Util.Conversion;
 using Constants = Raven.Abstractions.Data.Constants;
-using JsonSerializer = Newtonsoft.Json.JsonSerializer;
 
 namespace Raven.Database.Counters
 {
@@ -182,8 +182,8 @@ namespace Raven.Database.Counters
 				storageEnvironment.CreateTree(tx, "countersGroups");
 				var etags = storageEnvironment.CreateTree(tx, "etags->counters");
 				storageEnvironment.CreateTree(tx, "counters->etags");
-				
-				var metadata = tx.State.GetTree(tx, "$metadata");
+
+                var metadata = storageEnvironment.CreateTree(tx, "$metadata");
                 var id = metadata.Read(idSlice);
 
 				if (id == null) // new counter db
@@ -265,9 +265,16 @@ namespace Raven.Database.Counters
 
 		public void Dispose()
 		{
+			// give it 3 seconds to complete requests
+			for (int i = 0; i < 30 && Interlocked.Read(ref metricsCounters.ConcurrentRequestsCount) > 0; i++)
+			{
+				Thread.Sleep(100);
+			}
+
             ReplicationTask.Dispose();
 			if (storageEnvironment != null)
 				storageEnvironment.Dispose();
+
             metricsCounters.Dispose();
 		}
 
@@ -287,14 +294,14 @@ namespace Raven.Database.Counters
             {
                 this.parent = parent;
                 transaction = t;
-				serverNamesToIds = transaction.State.GetTree(transaction, "serverNames->Ids");
-				serverIdsToNames = transaction.State.GetTree(transaction, "Ids->serverNames");
-				serversLastEtag = transaction.State.GetTree(transaction, "servers->lastEtag");
-                counters = transaction.State.GetTree(transaction, "counters");
-                countersGroups = transaction.State.GetTree(transaction, "countersGroups");
-                countersEtags = transaction.State.GetTree(transaction, "counters->etags");
-                etagsCounters = transaction.State.GetTree(transaction, "etags->counters");
-				metadata = transaction.State.GetTree(transaction, "$metadata");
+				serverNamesToIds = parent.storageEnvironment.CreateTree(transaction, "serverNames->Ids");
+                serverIdsToNames = parent.storageEnvironment.CreateTree(transaction, "Ids->serverNames");
+                serversLastEtag = parent.storageEnvironment.CreateTree(transaction, "servers->lastEtag");
+                counters = parent.storageEnvironment.CreateTree(transaction, "counters");
+                countersGroups = parent.storageEnvironment.CreateTree(transaction, "countersGroups");
+                countersEtags = parent.storageEnvironment.CreateTree(transaction, "counters->etags");
+                etagsCounters = parent.storageEnvironment.CreateTree(transaction, "etags->counters");
+				metadata = parent.storageEnvironment.CreateTree(transaction, "$metadata");
             }
 
 		    public long GetCountersCount()
@@ -541,14 +548,14 @@ namespace Raven.Database.Counters
 				this.parent = parent;
                 transaction = storageEnvironment.NewTransaction(TransactionFlags.ReadWrite);
                 reader = new Reader(parent, transaction);
-				serverNamesToIds = transaction.State.GetTree(transaction, "serverNames->Ids");
-				serverIdsToNames = transaction.State.GetTree(transaction, "Ids->serverNames");
-				serversLastEtag = transaction.State.GetTree(transaction, "servers->lastEtag");
-                counters = transaction.State.GetTree(transaction, "counters");
-				countersGroups = transaction.State.GetTree(transaction, "countersGroups");
-				etagsCountersIx = transaction.State.GetTree(transaction, "etags->counters");
-				countersEtagIx = transaction.State.GetTree(transaction, "counters->etags");
-				metadata = transaction.State.GetTree(transaction, "$metadata");
+                serverNamesToIds = parent.storageEnvironment.CreateTree(transaction, "serverNames->Ids");
+                serverIdsToNames = parent.storageEnvironment.CreateTree(transaction, "Ids->serverNames");
+                serversLastEtag = parent.storageEnvironment.CreateTree(transaction, "servers->lastEtag");
+                counters = parent.storageEnvironment.CreateTree(transaction, "counters");
+                countersGroups = parent.storageEnvironment.CreateTree(transaction, "countersGroups");
+                etagsCountersIx = parent.storageEnvironment.CreateTree(transaction, "etags->counters");
+                countersEtagIx = parent.storageEnvironment.CreateTree(transaction, "counters->etags");
+                metadata = parent.storageEnvironment.CreateTree(transaction, "$metadata");
 
 				storeBuffer = new byte[sizeof(long) + //positive
 									   sizeof(long)]; // negative

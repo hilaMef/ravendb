@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Sparrow;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
@@ -7,6 +8,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Remoting.Messaging;
 using Voron.Debugging;
 using Voron.Exceptions;
 using Voron.Impl;
@@ -41,13 +43,14 @@ namespace Voron.Trees
             _state.RootPageNumber = root;
         }
 
-        private Tree(Transaction tx, TreeMutableState state)
+        public Tree(Transaction tx, TreeMutableState state)
         {
             _tx = tx;
             _state = state;
         }
 
         public bool KeysPrefixing { get { return _state.KeysPrefixing; } }
+        public Transaction Tx { get { return _tx; } }
 
         public static Tree Open(Transaction tx, TreeRootHeader* header)
         {
@@ -70,6 +73,10 @@ namespace Voron.Trees
 
         public static Tree Create(Transaction tx, bool keysPrefixing, TreeFlags flags = TreeFlags.None)
         {
+			var globalKeysPrefixingSetting = (CallContext.GetData("Voron/Trees/KeysPrefixing") as bool?);
+	        if (globalKeysPrefixingSetting != null)
+				keysPrefixing = globalKeysPrefixingSetting.Value;
+
             var newRootPage = NewPage(tx, keysPrefixing ? PageFlags.Leaf | PageFlags.KeysPrefixed : PageFlags.Leaf, 1);
             var tree = new Tree(tx, newRootPage.PageNumber)
             {
@@ -144,7 +151,7 @@ namespace Voron.Trees
 
             fixed (byte* src = value)
             {
-                MemoryUtils.Copy(pos, src, value.Length);
+                Memory.Copy(pos, src, value.Length);
             }
         }
 
@@ -171,7 +178,7 @@ namespace Voron.Trees
                     if (read == 0)
                         break;
 
-                    MemoryUtils.CopyInline(pos, tempPagePointer, read);
+                    Memory.CopyInline(pos, tempPagePointer, read);
                     pos += read;
 
                     if (read != tempPageBuffer.Length)
@@ -187,9 +194,19 @@ namespace Voron.Trees
             if (_tx.Flags == (TransactionFlags.ReadWrite) == false)
                 throw new ArgumentException("Cannot add a value in a read only transaction");
 
-            if (key.Size + Constants.NodeHeaderSize > AbstractPager.NodeMaxSize)
-                throw new ArgumentException(
-                    "Key size is too big, must be at most " + (AbstractPager.NodeMaxSize - Constants.NodeHeaderSize) + " bytes, but was " + key.Size, "key");
+			if (KeysPrefixing == false)
+			{
+				if (key.Size + AbstractPager.RequiredSpaceForNewNode > AbstractPager.NodeMaxSize)
+					throw new ArgumentException(
+						"Key size is too big, must be at most " + (AbstractPager.NodeMaxSize - AbstractPager.RequiredSpaceForNewNode) + " bytes, but was " + key.Size, "key");
+
+			}
+			else
+			{
+				if (key.Size + AbstractPager.RequiredSpaceForNewNodePrefixedKeys > AbstractPager.NodeMaxSizePrefixedKeys)
+					throw new ArgumentException(
+						"Key size is too big, must be at most " + (AbstractPager.NodeMaxSizePrefixedKeys - AbstractPager.RequiredSpaceForNewNodePrefixedKeys) + " bytes, but was " + key.Size, "key");
+			}
 
             Lazy<Cursor> lazy;
             NodeHeader* node;
@@ -245,11 +262,13 @@ namespace Voron.Trees
             byte* dataPos;
             if (page.HasSpaceFor(_tx, keyToInsert, len) == false)
             {
-                var cursor = lazy.Value;
-                cursor.Update(cursor.Pages.First, page);
+                using ( var cursor = lazy.Value )
+                {
+                    cursor.Update(cursor.Pages.First, page);
 
-                var pageSplitter = new PageSplitter(_tx, this, key, len, pageNumber, nodeType, nodeVersion, cursor, State);
-                dataPos = pageSplitter.Execute();
+                    var pageSplitter = new PageSplitter(_tx, this, key, len, pageNumber, nodeType, nodeVersion, cursor, State);
+                    dataPos = pageSplitter.Execute();
+                }
 
                 DebugValidateTree(State.RootPageNumber);
             }
@@ -319,19 +338,25 @@ namespace Voron.Trees
                 var p = stack.Pop();
                 if (p.NumberOfEntries == 0 && p != root)
                 {
-                    DebugStuff.RenderAndShow(_tx, rootPageNumber, 1);
+                    DebugStuff.RenderAndShow(_tx, rootPageNumber);
                     throw new InvalidOperationException("The page " + p.PageNumber + " is empty");
 
                 }
                 p.DebugValidate(_tx, rootPageNumber);
                 if (p.IsBranch == false)
                     continue;
+
+				if (p.NumberOfEntries < 2)
+				{
+					throw new InvalidOperationException("The branch page " + p.PageNumber + " has " + p.NumberOfEntries + " entry");
+				}
+
                 for (int i = 0; i < p.NumberOfEntries; i++)
                 {
                     var page = p.GetNode(i)->PageNumber;
                     if (pages.Add(page) == false)
                     {
-                        DebugStuff.RenderAndShow(_tx, rootPageNumber, 1);
+                        DebugStuff.RenderAndShow(_tx, rootPageNumber);
                         throw new InvalidOperationException("The page " + page + " already appeared in the tree!");
                     }
                     stack.Push(_tx.GetReadOnlyPage(page));
@@ -559,11 +584,15 @@ namespace Voron.Trees
 
             CheckConcurrency(key, version, nodeVersion, TreeActionType.Delete);
 
-            var treeRebalancer = new TreeRebalancer(_tx, this, lazy.Value);
-            var changedPage = page;
-            while (changedPage != null)
+            using ( var cursor = lazy.Value )
             {
-                changedPage = treeRebalancer.Execute(changedPage);
+                var treeRebalancer = new TreeRebalancer(_tx, this, cursor);
+                var changedPage = page;
+                while (changedPage != null)
+                {
+                    changedPage = treeRebalancer.Execute(changedPage);
+                }
+
             }
 
             page.DebugValidate(_tx, State.RootPageNumber);
@@ -774,5 +803,6 @@ namespace Voron.Trees
             if (_recentlyFoundPages != null)
                 _recentlyFoundPages.Clear();
         }
+
     }
 }

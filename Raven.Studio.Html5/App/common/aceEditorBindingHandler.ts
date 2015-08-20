@@ -92,6 +92,10 @@ class aceEditorBindingHandler {
         }
     }
 
+    static detached() {
+        aceEditorBindingHandler.customCompleters = [];
+    }
+
     static currentEditor;
 
     static customCompleters: { editorType: string; completerHostObject: any; completer: (editor: any, session: any, pos: AceAjax.Position, prefix: string, callback: (errors: any[], worldlist: { name: string; value: string; score: number; meta: string }[]) => void) => void }[] = [];
@@ -102,6 +106,8 @@ class aceEditorBindingHandler {
 
         if (!!completerThreesome) {
             completerThreesome.completer.call(completerThreesome.completerHostObject, editor, session, pos, prefix, callback);
+        } else {
+            callback(null, []);
         }
     }
 
@@ -254,7 +260,7 @@ class aceEditorBindingHandler {
         var aceEditor: AceAjax.Editor = ko.utils.domData.get(element, "aceEditor");
         var editorCode = aceEditor.getSession().getValue();
         if (code !== editorCode) {
-            aceEditor.getSession().setValue(code);
+            aceEditor.getSession().setValue(code||"");
         }
         if (this.allowResize) {
             this.alterHeight(element, aceEditor);

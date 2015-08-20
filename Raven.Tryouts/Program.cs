@@ -1,40 +1,49 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
-using System.Xml.Linq;
-using Microsoft.Isam.Esent.Interop;
-using Raven.Abstractions.Data;
-using Raven.Client;
 using Raven.Client.Document;
 using Raven.Client.Embedded;
-using Raven.Client.FileSystem;
-using Raven.Client.Indexes;
-using Raven.Json.Linq;
-using Raven.Tests.Common;
-using Raven.Tests.MailingList;
+using Raven.Database.Storage.Voron.Impl;
 
-namespace Raven.Tryouts
+namespace ConsoleApplication4
 {
-	public class Item2
-	{
-		public double Price;
-	}
-	public class Program
-	{
-		private static void Main()
-		{
-			var x= new DocumentStore
-			{
-				Url = "http://live-test.ravendb.net",
-				DefaultDatabase = "maxim"
-			}.Initialize();
-			using (var s = x.OpenSession())
-			{
-				s.Query<Item2>().Where(a => a.Price == 100).ToList();
-			}
-		}
+    class Program
+    {
+        public class Item
+        {
+            public int Number;
+        }
+        private static void Main(string[] args)
+        {
+            var ds = new DocumentStore
+            {
+                Url = "http://localhost:8080",
+                DefaultDatabase = "mr"
+            }.Initialize();
 
-	}
+            using (var bulk = ds.BulkInsert())
+            {
+                for (int i = 0; i < 1000 * 1000; i++)
+                {
+                    bulk.Store(new Item { Number = 1 });
+                }
+            }
+
+        }
+
+    }
+
+    public class Company
+    {
+        public string Id { get; set; }
+        public string ExternalId { get; set; }
+        public string Name { get; set; }
+
+        public string Phone { get; set; }
+        public string Fax { get; set; }
+    }
 }

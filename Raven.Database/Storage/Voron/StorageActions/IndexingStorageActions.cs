@@ -6,9 +6,11 @@
 
 using System.Globalization;
 using System.IO;
+using Mono.CSharp;
 using Raven.Abstractions.Indexing;
 using Raven.Abstractions.Util.Streams;
 using Raven.Database.Storage.Voron.StorageActions.StructureSchemas;
+using Voron.Trees;
 
 namespace Raven.Database.Storage.Voron.StorageActions
 {
@@ -38,14 +40,16 @@ namespace Raven.Database.Storage.Voron.StorageActions
 		private readonly IUuidGenerator generator;
 
 		private readonly IStorageActionsAccessor currentStorageActionsAccessor;
+	    private readonly GeneralStorageActions generalStorageActions;
 
-        public IndexingStorageActions(TableStorage tableStorage, IUuidGenerator generator, Reference<SnapshotReader> snapshot, Reference<WriteBatch> writeBatch, IStorageActionsAccessor storageActionsAccessor, IBufferPool bufferPool)
+	    public IndexingStorageActions(TableStorage tableStorage, IUuidGenerator generator, Reference<SnapshotReader> snapshot, Reference<WriteBatch> writeBatch, IStorageActionsAccessor storageActionsAccessor, IBufferPool bufferPool, GeneralStorageActions generalStorageActions)
 			: base(snapshot, bufferPool)
 		{
 			this.tableStorage = tableStorage;
 			this.generator = generator;
 			this.writeBatch = writeBatch;
 			this.currentStorageActionsAccessor = storageActionsAccessor;
+	        this.generalStorageActions = generalStorageActions;
 		}
 
 		public void Dispose()
@@ -154,13 +158,13 @@ namespace Raven.Database.Storage.Voron.StorageActions
 		{
 			token.ThrowIfCancellationRequested();
 
-			RemoveAllDocumentReferencesByView(id);
+			RemoveAllDocumentReferencesByView(id, token);
 
 			var mappedResultsStorageActions = (MappedResultsStorageActions)currentStorageActionsAccessor.MapReduce;
 
-			mappedResultsStorageActions.DeleteMappedResultsForView(id);
-			mappedResultsStorageActions.DeleteScheduledReductionForView(id);
-			mappedResultsStorageActions.RemoveReduceResultsForView(id);
+			mappedResultsStorageActions.DeleteMappedResultsForView(id, token);
+			mappedResultsStorageActions.DeleteScheduledReductionForView(id, token);
+			mappedResultsStorageActions.RemoveReduceResultsForView(id, token);
 		}
 
 		public void SetIndexPriority(int id, IndexingPriority priority)
@@ -168,6 +172,15 @@ namespace Raven.Database.Storage.Voron.StorageActions
 			tableStorage.IndexingMetadata.Add(writeBatch.Value, CreateKey(id, "priority"), BitConverter.GetBytes((int)priority));
 		}
 
+		public void SetIndexesPriority(int[] ids, IndexingPriority[] priorities)
+		{
+			for (int i = 0; i < ids.Length; i++)
+			{
+				var id = ids[i];
+				var priority = priorities[i];
+				tableStorage.IndexingMetadata.Add(writeBatch.Value, CreateKey(id, "priority"), BitConverter.GetBytes((int)priority));
+			}
+		}
 		public IndexFailureInformation GetFailureRate(int id)
 		{
             var key = new Slice(CreateKey(id));
@@ -275,63 +288,45 @@ namespace Raven.Database.Storage.Voron.StorageActions
             RemoveDocumentReferenceByKey((Slice)key);
 		}
 
-		public void RemoveAllDocumentReferencesByView(int view)
+		public void RemoveAllDocumentReferencesByView(int view, CancellationToken token)
 		{
-			var documentReferencesByView = tableStorage.DocumentReferences.GetIndex(Tables.DocumentReferences.Indices.ByView);
-
-            using (var iterator = documentReferencesByView.MultiRead(Snapshot, (Slice)CreateKey(view)))
-			{
-				if (iterator.Seek(Slice.BeforeAllKeys))
-				{
-                    RemoveDocumentReference(iterator, PulseTransaction);
-				}
-			}
+		    var documentReferencesByView = tableStorage.DocumentReferences.GetIndex(Tables.DocumentReferences.Indices.ByView);
+		    RemoveDocumentReference(() => documentReferencesByView.MultiRead(Snapshot, CreateKey(view)), tryPulseTransaction: true, token: token);
 		}
 
-        private void PulseTransaction()
-        {
-            currentStorageActionsAccessor.General.MaybePulseTransaction();
-        }
+	    public void UpdateDocumentReferences(int id, string key, HashSet<string> references)
+	    {
+	        var documentReferencesByKey = tableStorage.DocumentReferences.GetIndex(Tables.DocumentReferences.Indices.ByKey);
+	        var documentReferencesByRef = tableStorage.DocumentReferences.GetIndex(Tables.DocumentReferences.Indices.ByRef);
+	        var documentReferencesByView = tableStorage.DocumentReferences.GetIndex(Tables.DocumentReferences.Indices.ByView);
+	        var documentReferencesByViewAndKey = tableStorage.DocumentReferences.GetIndex(Tables.DocumentReferences.Indices.ByViewAndKey);
 
-		public void UpdateDocumentReferences(int id, string key, HashSet<string> references)
-		{
-			var documentReferencesByKey = tableStorage.DocumentReferences.GetIndex(Tables.DocumentReferences.Indices.ByKey);
-			var documentReferencesByRef = tableStorage.DocumentReferences.GetIndex(Tables.DocumentReferences.Indices.ByRef);
-			var documentReferencesByView = tableStorage.DocumentReferences.GetIndex(Tables.DocumentReferences.Indices.ByView);
-			var documentReferencesByViewAndKey = tableStorage.DocumentReferences.GetIndex(Tables.DocumentReferences.Indices.ByViewAndKey);
+	        var idKey = CreateKey(id);
+	        
+            RemoveDocumentReference(() => documentReferencesByViewAndKey.MultiRead(Snapshot, AppendToKey(idKey, key)), false, CancellationToken.None);
 
-            var idKey = CreateKey(id);
+	        var loweredKey = (Slice) CreateKey(key);
 
-            using (var iterator = documentReferencesByViewAndKey.MultiRead(Snapshot, (Slice)AppendToKey(idKey, key)))
-			{
-				if (iterator.Seek(Slice.BeforeAllKeys))
-				{
-                    RemoveDocumentReference(iterator);
-				}
-			}
+	        foreach (var reference in references)
+	        {
+	            var newKey = generator.CreateSequentialUuid(UuidType.DocumentReferences);
 
-            var loweredKey = (Slice) CreateKey(key);
+	            var value = new Structure<DocumentReferencesFields>(tableStorage.DocumentReferences.Schema)
+	                .Set(DocumentReferencesFields.IndexId, id)
+	                .Set(DocumentReferencesFields.Key, key)
+	                .Set(DocumentReferencesFields.Reference, reference);
 
-			foreach (var reference in references)
-			{
-				var newKey = generator.CreateSequentialUuid(UuidType.DocumentReferences);
+	            var newKeyAsSlice = (Slice) newKey.ToString();
 
-				var value = new Structure<DocumentReferencesFields>(tableStorage.DocumentReferences.Schema)
-					                .Set(DocumentReferencesFields.IndexId, id)
-					                .Set(DocumentReferencesFields.Key, key)
-					                .Set(DocumentReferencesFields.Reference, reference);
+	            tableStorage.DocumentReferences.AddStruct(writeBatch.Value, newKeyAsSlice, value);
+	            documentReferencesByKey.MultiAdd(writeBatch.Value, loweredKey, newKeyAsSlice);
+	            documentReferencesByRef.MultiAdd(writeBatch.Value, (Slice) CreateKey(reference), newKeyAsSlice);
+	            documentReferencesByView.MultiAdd(writeBatch.Value, (Slice) idKey, newKeyAsSlice);
+	            documentReferencesByViewAndKey.MultiAdd(writeBatch.Value, (Slice) AppendToKey(idKey, key), newKeyAsSlice);
+	        }
+	    }
 
-                var newKeyAsSlice = (Slice) newKey.ToString();
-
-                tableStorage.DocumentReferences.AddStruct(writeBatch.Value, newKeyAsSlice, value);
-                documentReferencesByKey.MultiAdd(writeBatch.Value, loweredKey, newKeyAsSlice);
-                documentReferencesByRef.MultiAdd(writeBatch.Value, (Slice)CreateKey(reference), newKeyAsSlice);
-                documentReferencesByView.MultiAdd(writeBatch.Value, (Slice)idKey, newKeyAsSlice);
-                documentReferencesByViewAndKey.MultiAdd(writeBatch.Value, (Slice)AppendToKey(idKey, key), newKeyAsSlice);
-			}
-		}
-
-		public IEnumerable<string> GetDocumentsReferencing(string reference)
+	    public IEnumerable<string> GetDocumentsReferencing(string reference)
 		{
 			var documentReferencesByRef = tableStorage.DocumentReferences.GetIndex(Tables.DocumentReferences.Indices.ByRef);
 
@@ -346,7 +341,8 @@ namespace Raven.Database.Storage.Voron.StorageActions
 				{
 					ushort version;
 					var structReader = LoadStruct(tableStorage.DocumentReferences, iterator.CurrentKey, writeBatch.Value, out version);
-
+					if (structReader == null)
+						continue;
 				    var item = structReader.ReadString(DocumentReferencesFields.Key);
 				    if (result.Add(item))
 				        yield return item;
@@ -423,7 +419,8 @@ namespace Raven.Database.Storage.Voron.StorageActions
 				{
 					ushort version;
 					var value = LoadStruct(tableStorage.DocumentReferences, iterator.CurrentKey, writeBatch.Value, out version);
-
+					if (value == null)
+						continue;
 					result.Add(value.ReadString(DocumentReferencesFields.Reference));
 				}
 				while (iterator.MoveNext());
@@ -453,6 +450,8 @@ namespace Raven.Database.Storage.Voron.StorageActions
 				        {
 					        ushort version;
 					        var value = LoadStruct(tableStorage.DocumentReferences, iterator.CurrentKey, writeBatch.Value, out version);
+							if (value == null)
+								continue;
 					        var currentKeyStr = docRefIterator.CurrentKey.ToString();
 					        DocCountWithSampleDocIds docData;
 					        if (keysToRef.TryGetValue(currentKeyStr, out docData) == false)
@@ -519,49 +518,67 @@ namespace Raven.Database.Storage.Voron.StorageActions
 
 		private void RemoveDocumentReferenceByKey(Slice key)
 		{
-            var keySlice = new Slice(CreateKey(key));
+		    var keySlice = new Slice(CreateKey(key));
 
-			var documentReferencesByKey = tableStorage.DocumentReferences.GetIndex(Tables.DocumentReferences.Indices.ByKey);
+		    var documentReferencesByKey = tableStorage.DocumentReferences.GetIndex(Tables.DocumentReferences.Indices.ByKey);
 
-			using (var iterator = documentReferencesByKey.MultiRead(Snapshot, keySlice))
-			{
-				if (!iterator.Seek(Slice.BeforeAllKeys))
-					return;
-
-                RemoveDocumentReference(iterator);
-			}
+		    RemoveDocumentReference(() => documentReferencesByKey.MultiRead(Snapshot, keySlice), false, CancellationToken.None);
 		}
 
-        private void RemoveDocumentReference(global::Voron.Trees.IIterator iterator, Action afterDocumentReferenceRemove = null)
+	    private void RemoveDocumentReference(Func<IIterator> createIterator, bool tryPulseTransaction, CancellationToken token)
         {
-            var documentReferencesByKey = tableStorage.DocumentReferences.GetIndex(Tables.DocumentReferences.Indices.ByKey);
-            var documentReferencesByRef = tableStorage.DocumentReferences.GetIndex(Tables.DocumentReferences.Indices.ByRef);
-            var documentReferencesByView = tableStorage.DocumentReferences.GetIndex(Tables.DocumentReferences.Indices.ByView);
-            var documentReferencesByViewAndKey = tableStorage.DocumentReferences.GetIndex(Tables.DocumentReferences.Indices.ByViewAndKey);
-
-            do
+            var iterator = createIterator();
+            try
             {
-                // TODO: Check if we can avoid the clone.
-                var id = iterator.CurrentKey.Clone();
+                if (iterator.Seek(Slice.BeforeAllKeys) == false)
+                    return;
 
-                ushort version;
-                var value = LoadStruct(tableStorage.DocumentReferences, id, writeBatch.Value, out version);
-                var reference = value.ReadString(DocumentReferencesFields.Reference);
-                var view = value.ReadInt(DocumentReferencesFields.IndexId).ToString(CultureInfo.InvariantCulture);
-                var key = value.ReadString(DocumentReferencesFields.Key);
+                var documentReferencesByKey = tableStorage.DocumentReferences.GetIndex(Tables.DocumentReferences.Indices.ByKey);
+                var documentReferencesByRef = tableStorage.DocumentReferences.GetIndex(Tables.DocumentReferences.Indices.ByRef);
+                var documentReferencesByView = tableStorage.DocumentReferences.GetIndex(Tables.DocumentReferences.Indices.ByView);
+                var documentReferencesByViewAndKey = tableStorage.DocumentReferences.GetIndex(Tables.DocumentReferences.Indices.ByViewAndKey);
 
-                var viewKey = CreateKey(view);
+                bool skipMoveNext;
+                do
+                {
+                    skipMoveNext = false;
+                    // TODO: Check if we can avoid the clone.
+                    var id = iterator.CurrentKey.Clone();
 
-                tableStorage.DocumentReferences.Delete(writeBatch.Value, id);
-                documentReferencesByKey.MultiDelete(writeBatch.Value, (Slice)CreateKey(key), id);
-                documentReferencesByRef.MultiDelete(writeBatch.Value, (Slice)CreateKey(reference), id);
-                documentReferencesByView.MultiDelete(writeBatch.Value, (Slice)viewKey, id);
-                documentReferencesByViewAndKey.MultiDelete(writeBatch.Value, (Slice)AppendToKey(viewKey, key), id);
+                    ushort version;
+                    var value = LoadStruct(tableStorage.DocumentReferences, id, writeBatch.Value, out version);
+                    if (value == null)
+                        continue;
+                    var reference = value.ReadString(DocumentReferencesFields.Reference);
+                    var view = value.ReadInt(DocumentReferencesFields.IndexId).ToString(CultureInfo.InvariantCulture);
+                    var key = value.ReadString(DocumentReferencesFields.Key);
 
-                if (afterDocumentReferenceRemove != null)
-                    afterDocumentReferenceRemove();
+                    var viewKey = CreateKey(view);
+
+                    tableStorage.DocumentReferences.Delete(writeBatch.Value, id);
+                    documentReferencesByKey.MultiDelete(writeBatch.Value, (Slice)CreateKey(key), id);
+                    documentReferencesByRef.MultiDelete(writeBatch.Value, (Slice)CreateKey(reference), id);
+                    documentReferencesByView.MultiDelete(writeBatch.Value, (Slice)viewKey, id);
+                    documentReferencesByViewAndKey.MultiDelete(writeBatch.Value, (Slice)AppendToKey(viewKey, key), id);
+
+                    if (tryPulseTransaction)
+                    {
+                        if (generalStorageActions.MaybePulseTransaction(iterator))
+                        {
+                            iterator = createIterator();
+                            if (iterator.Seek(Slice.BeforeAllKeys) == false)
+                                break;
+                            skipMoveNext = true;
+                        }
+                    }
+                }
+                while ((skipMoveNext || iterator.MoveNext()) && token.IsCancellationRequested == false);
             }
-            while (iterator.MoveNext());
+            finally
+            {
+                if (iterator != null)
+                    iterator.Dispose();
+            }
         }
 
 		private int ReadPriority(string key)

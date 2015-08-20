@@ -22,7 +22,7 @@ namespace Voron.Tests.Journal
 	        options.ManualFlushing = true;
         }
 
-        [Fact]
+        [PrefixesFact]
         public void CanUseMultipleLogFiles()
         {
             var bytes = new byte[1024];
@@ -32,7 +32,7 @@ namespace Voron.Tests.Journal
             {
                 using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
                 {
-                    tx.State.Root.Add("item/" + i, new MemoryStream(bytes));
+                    tx.Root.Add			("item/" + i, new MemoryStream(bytes));
                     tx.Commit();
                 }
             }
@@ -43,27 +43,27 @@ namespace Voron.Tests.Journal
             {
                 using (var tx = Env.NewTransaction(TransactionFlags.Read))
                 {
-                    Assert.NotNull(tx.State.Root.Read("item/" + i));
+                    Assert.NotNull(tx.Root.Read("item/" + i));
                 }
             }
         }
 
-        [Fact]
+        [PrefixesFact]
         public void ShouldNotReadUncommittedTransaction()
         {
             using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
             {
-                tx.State.Root.Add("items/1", StreamFor("values/1"));
+                tx.Root.Add			("items/1", StreamFor("values/1"));
                 // tx.Commit(); uncommitted transaction
             }
 
             using (var tx = Env.NewTransaction(TransactionFlags.Read))
             {
-                Assert.Null(tx.State.Root.Read("items/1"));
+                Assert.Null(tx.Root.Read("items/1"));
             }
         }
 
-        [Fact]
+        [PrefixesFact]
         public void CanFlushDataFromLogToDataFile()
         {
             for (var i = 0; i < 100; i++)
@@ -71,7 +71,7 @@ namespace Voron.Tests.Journal
                
                 using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
                 {
-                    tx.State.Root.Add("items/" + i, StreamFor("values/" + i));
+                    tx.Root.Add			("items/" + i, StreamFor("values/" + i));
                     tx.Commit();
                 }
             }

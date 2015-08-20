@@ -12,6 +12,7 @@ using Raven.Database.Storage;
 using System.Linq;
 using Raven.Abstractions.Extensions;
 using Raven.Database.Tasks;
+using Raven.Database.Util;
 
 namespace Raven.Database.Indexing
 {
@@ -42,10 +43,12 @@ namespace Raven.Database.Indexing
             using (LogContext.WithDatabase(context.DatabaseName))
             {
                 Init();
+
                 var name = GetType().Name;
                 var workComment = "WORK BY " + name;
+
                 bool isIdle = false;
-                while (context.RunIndexing)
+                while (ShouldRun)
                 {
                     bool foundWork;
                     try
@@ -79,9 +82,8 @@ namespace Raven.Database.Indexing
                         var oome = actual as OutOfMemoryException;
                         if (oome == null)
                         {
-                            if (IsEsentOutOfMemory(actual))
+                            if (TransactionalStorageHelper.IsOutOfMemoryException(actual))
                             {
-
                                 autoTuner.HandleOutOfMemory();
                             }
                             Log.ErrorException("Failed to execute indexing", ae);
@@ -100,7 +102,7 @@ namespace Raven.Database.Indexing
                     {
                         foundWork = true; // we want to keep on trying, anyway, not wait for the timeout or more work
                         Log.ErrorException("Failed to execute indexing", e);
-                        if (IsEsentOutOfMemory(e))
+                        if (TransactionalStorageHelper.IsOutOfMemoryException(e))
                         {
                             autoTuner.HandleOutOfMemory();
                         }
@@ -130,7 +132,7 @@ namespace Raven.Database.Indexing
                         }, name);
                     }
                     else // notify the tasks executer that it has work to do
-                    {
+                    {                       
                         context.ShouldNotifyAboutWork(() => workComment);
                         context.NotifyAboutWork();
                     }
@@ -139,27 +141,12 @@ namespace Raven.Database.Indexing
             }
         }
 
-	    protected virtual void CleanupPrefetchers()
+        public abstract bool ShouldRun { get; }
+
+        protected virtual void CleanupPrefetchers()
 	    {
 		    
 	    }
-
-	    private bool IsEsentOutOfMemory(Exception actual)
-        {
-            var esentErrorException = actual as EsentErrorException;
-            if (esentErrorException == null)
-                return false;
-            switch (esentErrorException.Error)
-            {
-                case JET_err.OutOfMemory:
-                case JET_err.CurrencyStackOutOfMemory:
-                case JET_err.SPAvailExtCacheOutOfMemory:
-                case JET_err.VersionStoreOutOfMemory:
-                case JET_err.VersionStoreOutOfMemoryAndCleanupTimedOut:
-                    return true;
-            }
-            return false;
-        }
 
         protected virtual void Dispose() { }
 
@@ -189,7 +176,9 @@ namespace Raven.Database.Indexing
 
                 context.UpdateFoundWork();
 
-                Log.Debug("Executing task: {0}", task);
+                if (Log.IsDebugEnabled)
+                    Log.Debug("Executing task: {0}", task);
+
                 foundWork = true;
 
                 context.CancellationToken.ThrowIfCancellationRequested();
@@ -253,9 +242,6 @@ namespace Raven.Database.Indexing
 					if(context.IndexDefinitionStorage.GetViewGenerator(indexesStat.Id) == null)
 						continue; // an index that is in the process of being added, ignoring it, we'll check again on the next run
 
-					if (index.IsMapIndexingInProgress)// precomputed? slow? it is already running, nothing to do with it for now
-						continue;
-
 					var indexToWorkOn = GetIndexToWorkOn(indexesStat);
                     indexToWorkOn.Index = index;
 
@@ -266,10 +252,11 @@ namespace Raven.Database.Indexing
             UpdateStalenessMetrics(indexesToWorkOn.Count);
 
             onlyFoundIdleWork = localFoundOnlyIdleWork.Value;
-            if (indexesToWorkOn.Count == 0)
-                return false;
+	        if (indexesToWorkOn.Count == 0)
+				return false;
+	        
 
-            context.UpdateFoundWork();
+	        context.UpdateFoundWork();
             context.CancellationToken.ThrowIfCancellationRequested();
 
             using (context.IndexDefinitionStorage.CurrentlyIndexing())

@@ -24,7 +24,7 @@ namespace Voron.Tests.Backups
 			options.ManualFlushing = true;
 		}
 
-		[Fact]
+		[PrefixesFact]
 		public void ShouldExplicitlyErrorThatTurningOnIncrementalBackupAfterInitializingTheStorageIsntAllowed()
 		{
 			RequireFileBasedPager();
@@ -37,7 +37,7 @@ namespace Voron.Tests.Backups
 			{
 				using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
 				{
-					tx.State.Root.Add("items/" + i, new MemoryStream(buffer));
+					tx.Root.Add			("items/" + i, new MemoryStream(buffer));
 					tx.Commit();
 				}
 			}

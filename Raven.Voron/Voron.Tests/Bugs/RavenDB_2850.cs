@@ -17,7 +17,7 @@ namespace Voron.Tests.Bugs
 			options.ManualFlushing = true;
 		}
 
-		[Fact]
+		[PrefixesFact]
 		public void FlushingLogsShouldNotCauseExceptions()
 		{
 			// this test reproduces the issue RavenDB-2850 - very rare corner case that involves the journal applicator and the scratch buffer
@@ -41,7 +41,7 @@ namespace Voron.Tests.Bugs
 
 					random.NextBytes(value);
 
-					txw.State.Root.Add("items/", value);
+					txw.Root.Add("items/", value);
 
 					txw.Commit();
 				}

@@ -7,7 +7,7 @@ namespace Voron.Tests.Storage
 {
     public class MultiTransactions
     {
-        [Fact]
+        [PrefixesFact]
         public void ShouldWork()
         {
             using (var env = new StorageEnvironment(StorageEnvironmentOptions.CreateMemoryOnly()))
@@ -23,7 +23,7 @@ namespace Voron.Tests.Storage
                         {
                             ms.Position = 0;
                             
-                            tx.State.Root.Add((x * i).ToString("0000000000000000"), ms);
+                            tx.Root.Add			((x * i).ToString("0000000000000000"), ms);
                         }
 
                         tx.Commit();

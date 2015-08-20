@@ -16,6 +16,7 @@ using Raven.Client.Util;
 using Raven.Database.Util;
 using Raven.Imports.Newtonsoft.Json;
 using Raven.Json.Linq;
+using Sparrow.Collections;
 
 namespace Raven.Client.Document
 {
@@ -40,6 +41,7 @@ namespace Raven.Client.Document
 			nonGenericCriteria.KeyStartsWith = criteria.KeyStartsWith;
 			nonGenericCriteria.PropertiesMatch = criteria.GetPropertiesMatchStrings();
 			nonGenericCriteria.PropertiesNotMatch = criteria.GetPropertiesNotMatchStrings();
+			nonGenericCriteria.StartEtag = criteria.StartEtag;
 
 			return CreateAsync(nonGenericCriteria, database);
 		}
@@ -81,10 +83,22 @@ namespace Raven.Client.Document
 				? documentStore.AsyncDatabaseCommands
 				: documentStore.AsyncDatabaseCommands.ForDatabase(database);
 
-			await SendOpenSubscriptionRequest(commands, id, options).ConfigureAwait(false);
+			var open = true;
 
-			var subscription = new Subscription<T>(id, database ?? MultiDatabase.GetDatabaseName(documentStore.Url), options, commands, documentStore.Changes(database), documentStore.Conventions, () => 
-				SendOpenSubscriptionRequest(commands, id, options)); // to ensure that subscription is open try to call it with the same connection id
+			try
+			{
+				await SendOpenSubscriptionRequest(commands, id, options).ConfigureAwait(false);
+			}
+			catch (SubscriptionException subscriptionException)
+			{
+				if (options.Strategy != SubscriptionOpeningStrategy.WaitForFree || (subscriptionException is SubscriptionInUseException) == false)
+					throw;
+
+				open = false;
+			}
+
+			var subscription = new Subscription<T>(id, database ?? MultiDatabase.GetDatabaseName(documentStore.Url), options, commands, documentStore.Changes(database), 
+				documentStore.Conventions, open, () => SendOpenSubscriptionRequest(commands, id, options)); // to ensure that subscription is open try to call it with the same connection id
 
 			subscriptions.Add(subscription);
 
@@ -157,7 +171,7 @@ namespace Raven.Client.Document
 		{
 			var text = ere.ResponseString;
 
-			if (ere.StatusCode == SubscriptionDoesNotExistExeption.RelevantHttpStatusCode)
+			if (ere.StatusCode == SubscriptionDoesNotExistException.RelevantHttpStatusCode)
 			{
 				var errorResult = JsonConvert.DeserializeAnonymousType(text, new
 				{
@@ -165,7 +179,7 @@ namespace Raven.Client.Document
 					error = (string)null
 				});
 
-				subscriptionException = new SubscriptionDoesNotExistExeption(errorResult.error);
+				subscriptionException = new SubscriptionDoesNotExistException(errorResult.error);
 				return true;
 			}
 

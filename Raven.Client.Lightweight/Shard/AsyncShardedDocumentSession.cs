@@ -5,6 +5,7 @@
 //-----------------------------------------------------------------------
 using System;
 using System.Collections.Generic;
+using System.Dynamic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
@@ -45,7 +46,7 @@ namespace Raven.Client.Shard
 			throw new NotSupportedException("This method requires a synchronous call to the server, which is not supported by the async session");
 		}
 
-		#region Properties to access different interfacess
+		#region Properties to access different interfaces
 
 		IAsyncAdvancedSessionOperations IAsyncDocumentSession.Advanced
 		{
@@ -109,6 +110,11 @@ namespace Raven.Client.Shard
 		public IAsyncLazySessionOperations Lazily { get; private set; }
 	    public IAsyncEagerSessionOperations Eagerly { get; private set; }
 
+		public Task<FacetResults[]> MultiFacetedSearchAsync(params FacetQuery[] queries)
+		{
+			throw new NotSupportedException("Multi faceted searching is currently not supported by async sharded document store");
+		}
+
 		public string GetDocumentUrl(object entity)
 		{
 			DocumentMetadata value;
@@ -122,7 +128,7 @@ namespace Raven.Client.Shard
 			return commands.UrlFor(value.Key);
 		}
 
-		Lazy<Task<TResult[]>> IAsyncLazySessionOperations.LoadStartingWithAsync<TResult>(string keyPrefix, string matches, int start, int pageSize, string exclude, RavenPagingInformation pagingInformation, string skipAfter, CancellationToken token = default (CancellationToken))
+		Lazy<Task<TResult[]>> IAsyncLazySessionOperations.LoadStartingWithAsync<TResult>(string keyPrefix, string matches, int start, int pageSize, string exclude, RavenPagingInformation pagingInformation, string skipAfter, CancellationToken token)
 	    {
 	        throw new NotImplementedException();
 	    }
@@ -368,30 +374,30 @@ namespace Raven.Client.Shard
 					token.ThrowIfCancellationRequested();
 					var currentShardIds = shard.Select(x => x.Id).ToArray();
 					var shardResults = await shardStrategy.ShardAccessStrategy.ApplyAsync(shard.Key,
-							new ShardRequestData { EntityType = typeof(T), Keys = currentShardIds.ToList() },
-							async (dbCmd, i) =>
-							{
-								// Returns array of arrays, public APIs don't surface that yet though as we only support Transform
-								// With a single Id
-                                var arrayOfArrays = (await dbCmd.GetAsync(currentShardIds, includePaths, transformer, transformerParameters, token: token).ConfigureAwait(false))
-															.Results
-															.Select(x => x.Value<RavenJArray>("$values").Cast<RavenJObject>())
-															.Select(values =>
-															{
-																var array = values.Select(y =>
-																{
-																	HandleInternalMetadata(y);
-																	return ConvertToEntity(typeof(T),null, y, new RavenJObject());
-																}).ToArray();
-																var newArray = Array.CreateInstance(typeof(T).GetElementType(), array.Length);
-																Array.Copy(array, newArray, array.Length);
-																return newArray;
-															})
-															.Cast<T>()
-															.ToArray();
+						new ShardRequestData { EntityType = typeof(T), Keys = currentShardIds.ToList() },
+						async (dbCmd, i) =>
+						{
+							// Returns array of arrays, public APIs don't surface that yet though as we only support Transform
+							// With a single Id
+							var arrayOfArrays = (await dbCmd.GetAsync(currentShardIds, includePaths, transformer, transformerParameters, token: token).ConfigureAwait(false))
+								.Results
+								.Select(x => x.Value<RavenJArray>("$values").Cast<RavenJObject>())
+								.Select(values =>
+								{
+									var array = values.Select(y =>
+									{
+										HandleInternalMetadata(y);
+										return ConvertToEntity(typeof(T),null, y, new RavenJObject());
+									}).ToArray();
+									var newArray = Array.CreateInstance(typeof(T).GetElementType(), array.Length);
+									Array.Copy(array, newArray, array.Length);
+									return newArray;
+								})
+								.Cast<T>()
+								.ToArray();
 
-								return arrayOfArrays;
-							}).WithCancellation(token);
+							return arrayOfArrays;
+						}).WithCancellation(token).ConfigureAwait(false);
 
 					return shardResults.SelectMany(x => x).ToArray();
 				}
@@ -622,11 +628,6 @@ namespace Raven.Client.Shard
 			throw new NotSupportedException("Streams are currently not supported by sharded document store");
 		}
 
-		public Task<RavenJObject> GetMetadataForAsync<T>(T instance)
-		{
-			throw new NotImplementedException("GetMetadataForAsync currently not supported by sharded document store");
-		}
-
 		public async Task RefreshAsync<T>(T entity, CancellationToken token = default (CancellationToken))
 		{
 			DocumentMetadata value;
@@ -643,13 +644,13 @@ namespace Raven.Client.Shard
 
 			var results = await shardStrategy.ShardAccessStrategy.ApplyAsync(dbCommands, shardRequestData, async (dbCmd, i) =>
 			{
-				var jsonDocument = await dbCmd.GetAsync(value.Key, token);
+				var jsonDocument = await dbCmd.GetAsync(value.Key, token).ConfigureAwait(false);
 				if (jsonDocument == null)
 					return false;
 
 				RefreshInternal(entity, jsonDocument, value);
 				return true;
-			}).WithCancellation(token);
+			}).WithCancellation(token).ConfigureAwait(false);
 
 			if (results.All(x => x == false))
 			{
@@ -662,7 +663,7 @@ namespace Raven.Client.Shard
 		/// <summary>
 		/// Saves all the changes to the Raven server.
 		/// </summary>
-		Task IAsyncDocumentSession.SaveChangesAsync(CancellationToken token = default (CancellationToken))
+		Task IAsyncDocumentSession.SaveChangesAsync(CancellationToken token)
 		{
 			return asyncDocumentKeyGeneration.GenerateDocumentKeysForSaveChanges()
 											 .ContinueWith(keysTask =>
@@ -751,5 +752,57 @@ namespace Raven.Client.Shard
 	    {
 	        throw new NotSupportedException("Async kazy requests are not supported for sharded store");
 	    }
+
+		public async Task<RavenJObject> GetMetadataForAsync<T>(T instance)
+		{
+			var metadata = await GetDocumentMetadataAsync(instance).ConfigureAwait(false);
+			return metadata.Metadata;
+		}
+
+		private async Task<DocumentMetadata> GetDocumentMetadataAsync<T>(T instance)
+		{
+			DocumentMetadata value;
+			if (entitiesAndMetadata.TryGetValue(instance, out value) == false)
+			{
+				string id;
+				if (GenerateEntityIdOnTheClient.TryGetIdFromInstance(instance, out id)
+					|| (instance is IDynamicMetaObjectProvider &&
+					   GenerateEntityIdOnTheClient.TryGetIdFromDynamic(instance, out id)))
+				{
+					AssertNoNonUniqueInstance(instance, id);
+					var jsonDocument = await GetJsonDocumentAsync(id).ConfigureAwait(false);
+					value = GetDocumentMetadataValue(instance, id, jsonDocument);
+				}
+				else
+				{
+					throw new InvalidOperationException("Could not find the document key for " + instance);
+				}
+			}
+			return value;
+		}
+
+		/// <summary>
+		/// Get the json document by key from the store
+		/// </summary>
+		private async Task<JsonDocument> GetJsonDocumentAsync(string documentKey)
+		{
+			 var shardRequestData = new ShardRequestData
+			{
+				EntityType = typeof(object),
+				Keys = { documentKey }
+			};
+			var dbCommands = GetCommandsToOperateOn(shardRequestData);
+
+			var documents = await shardStrategy.ShardAccessStrategy.ApplyAsync(dbCommands,
+				shardRequestData,
+				(commands, i) => commands.GetAsync(documentKey)).ConfigureAwait(false);
+
+			var document = documents.FirstOrDefault(x => x != null);
+			if (document != null)
+				return document;
+
+			throw new InvalidOperationException("Document '" + documentKey + "' no longer exists and was probably deleted");
+			 
+		}
 	}
 }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Sparrow;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using Voron.Impl;
@@ -15,7 +16,7 @@ namespace Voron.Tests.Storage
 			options.ManualFlushing = true;
 		}
 
-		[Theory]
+		[PrefixesTheory]
 		[InlineData(0)]
 		[InlineData(1)]
 		[InlineData(2)]
@@ -28,7 +29,7 @@ namespace Voron.Tests.Storage
 			random.NextBytes(buffer);
 			using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
 			{
-				tx.State.Root.Add(new Slice(BitConverter.GetBytes(1203)), new MemoryStream(buffer));
+				tx.Root.Add			(new Slice(BitConverter.GetBytes(1203)), new MemoryStream(buffer));
 				tx.Commit();
 			}
 
@@ -41,13 +42,13 @@ namespace Voron.Tests.Storage
 
 			using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
 			{
-				tx.State.Root.Delete(new Slice(BitConverter.GetBytes(1203)));
+				tx.Root.Delete(new Slice(BitConverter.GetBytes(1203)));
 				tx.Commit();
 			}
 
 			using (var tx = Env.NewTransaction(TransactionFlags.Read))
 			{
-				var readResult = tx.State.Root.Read(new Slice(BitConverter.GetBytes(1203)));
+				var readResult = tx.Root.Read(new Slice(BitConverter.GetBytes(1203)));
 				Assert.Null(readResult);
 			}
 
@@ -56,7 +57,7 @@ namespace Voron.Tests.Storage
 
 			using (var tx = Env.NewTransaction(TransactionFlags.Read))
 			{
-				var readResult = tx.State.Root.Read(new Slice(BitConverter.GetBytes(1203)));
+				var readResult = tx.Root.Read(new Slice(BitConverter.GetBytes(1203)));
 				Assert.Null(readResult);
 			}
 
@@ -64,13 +65,13 @@ namespace Voron.Tests.Storage
 			{
 				buffer = new byte[1024 * 1024 * 3 + 1238];
 				random.NextBytes(buffer);
-				tx.State.Root.Add(new Slice(BitConverter.GetBytes(1203)), new MemoryStream(buffer));
+				tx.Root.Add			(new Slice(BitConverter.GetBytes(1203)), new MemoryStream(buffer));
 				tx.Commit();
 			}
 
 			using (var tx = Env.NewTransaction(TransactionFlags.Read))
 			{
-				var readResult = tx.State.Root.Read(new Slice(BitConverter.GetBytes(1203)));
+				var readResult = tx.Root.Read(new Slice(BitConverter.GetBytes(1203)));
 				Assert.NotNull(readResult);
 
 				var memoryStream = new MemoryStream();
@@ -84,7 +85,7 @@ namespace Voron.Tests.Storage
 
 			using (var tx = Env.NewTransaction(TransactionFlags.Read))
 			{
-				var readResult = tx.State.Root.Read(new Slice(BitConverter.GetBytes(1203)));
+				var readResult = tx.Root.Read(new Slice(BitConverter.GetBytes(1203)));
 				Assert.NotNull(readResult);
 
 				var memoryStream = new MemoryStream();
@@ -97,7 +98,7 @@ namespace Voron.Tests.Storage
 
 			using (var tx = Env.NewTransaction(TransactionFlags.Read))
 			{
-				var readResult = tx.State.Root.Read(new Slice(BitConverter.GetBytes(1203)));
+				var readResult = tx.Root.Read(new Slice(BitConverter.GetBytes(1203)));
 				Assert.NotNull(readResult);
 
 				var memoryStream = new MemoryStream();
@@ -113,7 +114,7 @@ namespace Voron.Tests.Storage
 
 			using (var tx = Env.NewTransaction(TransactionFlags.Read))
 			{
-				var readResult = tx.State.Root.Read(new Slice(BitConverter.GetBytes(1203)));
+				var readResult = tx.Root.Read(new Slice(BitConverter.GetBytes(1203)));
 				Assert.NotNull(readResult);
 
 				var memoryStream = new MemoryStream();
@@ -127,10 +128,10 @@ namespace Voron.Tests.Storage
 		{
 			fixed(byte* b = buffer)
 			fixed (byte* c = memoryStream.GetBuffer())
-                Assert.Equal(0, MemoryUtils.Compare(b, c, buffer.Length));
+                Assert.Equal(0, Memory.Compare(b, c, buffer.Length));
 		}
 
-		[Fact]
+		[PrefixesFact]
 		public void CanStoreInOneTransactionReallyBigValue()
 		{
 			var random = new Random(43321);
@@ -138,13 +139,13 @@ namespace Voron.Tests.Storage
 			random.NextBytes(buffer);
 			using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
 			{
-				tx.State.Root.Add(new Slice(BitConverter.GetBytes(1203)), new MemoryStream(buffer));
+				tx.Root.Add			(new Slice(BitConverter.GetBytes(1203)), new MemoryStream(buffer));
 				tx.Commit();
 			}
 
 			using (var tx = Env.NewTransaction(TransactionFlags.Read))
 			{
-				var readResult = tx.State.Root.Read(new Slice(BitConverter.GetBytes(1203)));
+				var readResult = tx.Root.Read(new Slice(BitConverter.GetBytes(1203)));
 				Assert.NotNull(readResult);
 
 				var memoryStream = new MemoryStream();
@@ -154,7 +155,7 @@ namespace Voron.Tests.Storage
 			}
 		}
 
-		[Fact]
+		[PrefixesFact]
 		public void CanStoreInOneTransactionManySmallValues()
 		{
 			var buffers = new List<byte[]>();
@@ -166,7 +167,7 @@ namespace Voron.Tests.Storage
 					var buffer = new byte[912];
 					random.NextBytes(buffer);
 					buffers.Add(buffer);
-					tx.State.Root.Add(new Slice(BitConverter.GetBytes(i)), new MemoryStream(buffer));
+					tx.Root.Add			(new Slice(BitConverter.GetBytes(i)), new MemoryStream(buffer));
 				}
 				tx.Commit();
 			}
@@ -175,7 +176,7 @@ namespace Voron.Tests.Storage
 			{
 				for (int i = 0; i < 1500; i++)
 				{
-					var readResult = tx.State.Root.Read(new Slice(BitConverter.GetBytes(i)));
+					var readResult = tx.Root.Read(new Slice(BitConverter.GetBytes(i)));
 					Assert.NotNull(readResult);
 
 					var memoryStream = new MemoryStream();

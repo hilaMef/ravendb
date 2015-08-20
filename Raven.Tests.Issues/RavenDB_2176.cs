@@ -5,7 +5,7 @@
 // -----------------------------------------------------------------------
 using System;
 using System.Collections.Concurrent;
-
+using Raven.Abstractions;
 using Raven.Abstractions.Logging;
 using Raven.Database.Server;
 using Raven.Database.Server.Connections;
@@ -34,7 +34,7 @@ namespace Raven.Tests.Issues
                     client1Target.Reconnect(fakeTransport1);
                     var category1Log = LogManager.GetLogger("Raven.Category1");
 
-                    client1Target.EnableLogging("Raven.Category1", LogLevel.Info);
+                    client1Target.EnableLogging("Raven.Category1", LogLevel.Info, false);
 
                     category1Log.Debug("Debug");
                     category1Log.Info("Info");
@@ -62,8 +62,8 @@ namespace Raven.Tests.Issues
                     var category1Log = LogManager.GetLogger("Raven.Category1");
                     var category1Sub = LogManager.GetLogger("Raven.Category1.Sub1");
 
-                    client1Target.EnableLogging("Raven.Category1", LogLevel.Info);
-                    client1Target.EnableLogging("Raven.Category1.Sub1", LogLevel.Debug);
+                    client1Target.EnableLogging("Raven.Category1", LogLevel.Info, false);
+                    client1Target.EnableLogging("Raven.Category1.Sub1", LogLevel.Debug, false);
 
                     category1Log.Debug("Debug1");
                     category1Log.Info("Info1");
@@ -87,6 +87,9 @@ namespace Raven.Tests.Issues
 
     class FakeLogTransport : IEventsTransport
     {
+		private readonly DateTime _started = SystemTime.UtcNow;
+		public TimeSpan Age { get { return SystemTime.UtcNow - _started; } }
+
         public BlockingCollection<LogEventInfo> Messages { get; private set; }
 
         public FakeLogTransport()

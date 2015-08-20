@@ -10,7 +10,7 @@ namespace Voron.Tests.Bugs
 {
     public class StartsWithSearch
     {
-        [Fact]
+        [PrefixesFact]
         public void ShouldWork()
         {
             using (var env = new StorageEnvironment(StorageEnvironmentOptions.CreateMemoryOnly()))
@@ -28,7 +28,7 @@ namespace Voron.Tests.Bugs
 
                 using (var tx = env.NewTransaction(TransactionFlags.Read))
                 {
-                    var tree = tx.State.GetTree(tx, "data");
+                    var tree = tx.ReadTree("data");
                     using (var it = tree.Iterate())
                     {
                         Assert.True(it.Seek("users-7"));

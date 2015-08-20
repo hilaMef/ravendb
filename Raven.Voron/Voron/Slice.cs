@@ -7,6 +7,7 @@ using Voron.Util.Conversion;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Voron.Util;
+using Sparrow;
 
 namespace Voron
 {
@@ -114,12 +115,62 @@ namespace Voron
 				}
 			}
 
-			if (Array != null)
-				return Encoding.UTF8.GetString(Array,0, Size);
+		    if (Array != null)
+		    {
+                if (Array.Length > 0 && Array[0] == 0)
+		        {
+		            return ByteArrayToHexViaLookup32(Array);
+		        }
+		        return Encoding.UTF8.GetString(Array,0, Size);
+		    }
+		    if (Size > 0 && Pointer[0] == 0)
+		    {
+                return BytePointerToHexViaLookup32(Pointer, Size);
+		
+		    }
 
 			return new string((sbyte*)Pointer, 0, Size, Encoding.UTF8);
 		}
 
+        private static readonly uint[] _lookup32 = CreateLookup32();
+
+        private static uint[] CreateLookup32()
+        {
+            var result = new uint[256];
+            for (int i = 0; i < 256; i++)
+            {
+                string s = i.ToString("X2");
+                result[i] = ((uint)s[0]) + ((uint)s[1] << 16);
+            }
+            return result;
+        }
+
+        private static string ByteArrayToHexViaLookup32(byte[] bytes)
+        {
+            var lookup32 = _lookup32;
+            var result = new char[bytes.Length * 2];
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                var val = lookup32[bytes[i]];
+                result[2 * i] = (char)val;
+                result[2 * i + 1] = (char)(val >> 16);
+            }
+            return new string(result);
+        }
+
+
+        private static string BytePointerToHexViaLookup32(byte* bytes, int count)
+        {
+            var lookup32 = _lookup32;
+            var result = new char[count * 2];
+            for (int i = 0; i < count; i++)
+            {
+                var val = lookup32[bytes[i]];
+                result[2 * i] = (char)val;
+                result[2 * i + 1] = (char)(val >> 16);
+            }
+            return new string(result);
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal int CompareDataInline(Slice other, ushort size)
@@ -132,10 +183,10 @@ namespace Voron
                     {
                         fixed (byte* b = other.Array)
                         {
-                            return MemoryUtils.CompareInline(a, b, size);
+                            return Memory.CompareInline(a, b, size);
                         }
                     }
-                    else return MemoryUtils.CompareInline(a, other.Pointer, size);
+                    else return Memory.CompareInline(a, other.Pointer, size);
                 }
             }
 
@@ -143,10 +194,10 @@ namespace Voron
             {
                 fixed (byte* b = other.Array)
                 {
-                    return MemoryUtils.CompareInline(Pointer, b, size);
+                    return Memory.CompareInline(Pointer, b, size);
                 }
             }
-            else return MemoryUtils.CompareInline(Pointer, other.Pointer, size);
+            else return Memory.CompareInline(Pointer, other.Pointer, size);
         }
 
         protected override int CompareData(MemorySlice other, ushort size)
@@ -157,7 +208,7 @@ namespace Voron
 
 			var prefixedSlice = other as PrefixedSlice;
 			if (prefixedSlice != null)
-				return PrefixedSliceComparisonMethods.Compare(this, prefixedSlice, MemoryUtils.MemoryComparerInstance, size);
+				return PrefixedSliceComparisonMethods.Compare(this, prefixedSlice, PrefixedSlice.MemoryComparerInstance, size);
 
 			throw new NotSupportedException("Cannot compare because of unknown slice type: " + other.GetType());
 		}      
@@ -211,12 +262,12 @@ namespace Voron
 		{
 			if (Array == null)
 			{
-                MemoryUtils.Copy(dest, Pointer, Size);
+                Memory.Copy(dest, Pointer, Size);
 				return;
 			}
 			fixed (byte* a = Array)
 			{
-                MemoryUtils.Copy(dest, a, Size);
+                Memory.Copy(dest, a, Size);
 			}
 		}
 
@@ -230,7 +281,7 @@ namespace Voron
 			if (Array == null)
 			{
 				fixed (byte* p = dest)
-                    MemoryUtils.Copy(p, Pointer, Size);
+                    Memory.Copy(p, Pointer, Size);
 				return;
 			}
 			Buffer.BlockCopy(Array, 0, dest, 0, Size);
@@ -246,7 +297,7 @@ namespace Voron
 			if (Array == null)
 			{
 				fixed (byte* p = dest)
-                    MemoryUtils.Copy(p + offset, Pointer + from, count);
+                    Memory.Copy(p + offset, Pointer + from, count);
 				return;
 			}
 			Buffer.BlockCopy(Array, from, dest, offset, count);
@@ -259,12 +310,12 @@ namespace Voron
 
 			if (Array == null)
 			{
-                MemoryUtils.Copy(dest + offset, Pointer + from, count);
+                Memory.Copy(dest + offset, Pointer + from, count);
 				return;
 			}
 
 			fixed (byte* p = Array)
-                MemoryUtils.Copy(dest + offset, p + from, count);
+                Memory.Copy(dest + offset, p + from, count);
 		}
 
 		public Slice Clone()
@@ -274,7 +325,7 @@ namespace Voron
 			{
 				fixed (byte* dest = buffer)
 				{
-                    MemoryUtils.Copy(dest, Pointer, Size);
+                    Memory.Copy(dest, Pointer, Size);
 				}
 			}
 			else

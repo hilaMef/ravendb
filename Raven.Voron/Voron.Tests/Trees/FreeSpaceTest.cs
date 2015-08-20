@@ -8,7 +8,7 @@ namespace Voron.Tests.Trees
 {
 	public class FreeSpaceTest : StorageTest
 	{
-		[Fact]
+		[PrefixesFact]
 		public void WillBeReused()
 		{
 			var random = new Random();
@@ -19,7 +19,7 @@ namespace Voron.Tests.Trees
 			{
 				for (int i = 0; i < 25; i++)
 				{
-					tx.State.Root.Add(i.ToString("0000"), new MemoryStream(buffer));
+					tx.Root.Add			(i.ToString("0000"), new MemoryStream(buffer));
 				}
 
 				tx.Commit();
@@ -30,7 +30,7 @@ namespace Voron.Tests.Trees
 			{
 				for (int i = 0; i < 25; i++)
 				{
-					tx.State.Root.Delete(i.ToString("0000"));
+					tx.Root.Delete(i.ToString("0000"));
 				}
 
 				tx.Commit();
@@ -41,7 +41,7 @@ namespace Voron.Tests.Trees
 			{
 				for (int i = 0; i < 25; i++)
 				{
-					tx.State.Root.Add(i.ToString("0000"), new MemoryStream(buffer));
+					tx.Root.Add			(i.ToString("0000"), new MemoryStream(buffer));
 				}
 
 				tx.Commit();
@@ -54,7 +54,7 @@ namespace Voron.Tests.Trees
 			Assert.True(Env.NextPageNumber - old < 2, "This test will not pass until we finish merging the free space branch");
 		}
 
-		[Fact]
+		[PrefixesFact]
 		public void ShouldReturnProperPageFromSecondSection()
 		{
 			using (var tx = Env.NewTransaction(TransactionFlags.ReadWrite))
@@ -70,7 +70,7 @@ namespace Voron.Tests.Trees
 			}
 		}
 
-		[Fact]
+		[PrefixesFact]
 		public void CanReuseMostOfFreePages_RemainingOnesCanBeTakenToHandleFreeSpace()
 		{
 			const int maxPageNumber = 4000000;
@@ -121,7 +121,7 @@ namespace Voron.Tests.Trees
 			}
 		}
 
-		[Fact]
+		[PrefixesFact]
 		public void FreeSpaceHandlingShouldNotReturnPagesThatAreAlreadyAllocated()
 		{
 			const int maxPageNumber = 400000;
