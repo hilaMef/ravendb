@@ -90,10 +90,12 @@ namespace Raven.Database.FileSystem.Controllers
                     {
                         status.ExceptionDetails = e.Message;
                     }
+
 	                if (e is OperationVetoedException)
 	                {
-						status.ExceptionDetails = "The versioning bundle is enabled. You should disable versioning during import. Please mark the checkbox 'Disable versioning bundle during import' at Import Database: Advanced settings before importing";
+						status.ExceptionDetails = "The versioning bundle is enabled. You should disable versioning during import. Please mark the checkbox 'Disable versioning bundle during import' at Import File System";
 					}
+
                     else
                     {
                         status.ExceptionDetails = e.ToString();
