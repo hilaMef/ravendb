@@ -31,7 +31,20 @@ namespace Raven.Database.FileSystem.Bundles.Versioning.Plugins
 	        {
 		        var file = accessor.ReadFile(name);
 		        if (file == null)
+		        {
+					if (fileSystem.IsVersioningActive(name) == false)
+						veto = VetoResult.Allowed;
+
+					else if (accessor.IsVersioningDisabledForImport(metadata))
+						veto = VetoResult.Allowed;
+
+					else if (fileSystem.ChangesToRevisionsAllowed() == false &&
+						metadata.Value<string>(VersioningUtil.RavenFileRevisionStatus) == "Historical")
+					{
+						veto = VetoResult.Deny("Creating a historical revision is not allowed");
+					}
 			        return;
+		        }
 
 		        if (accessor.IsVersioningActive(name))
 		        {
