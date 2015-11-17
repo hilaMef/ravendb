@@ -180,7 +180,9 @@ namespace Raven.Tests.Issues.Prefetcher
                 count += i;
 
                 if (count == 1536)
+                {
                     mre.Set();
+                }
             };
 
             AddDocumentsToTransactionalStorage(prefetcher.TransactionalStorage, 2048);
@@ -438,7 +440,7 @@ namespace Raven.Tests.Issues.Prefetcher
 
             Assert.Equal(1, documents.Count);
             Assert.True(mre.Wait(TimeSpan.FromSeconds(10)));
-            Assert.True(prefetcher.PrefetchingBehavior.InMemoryFutureIndexBatchesSize > 1536);
+            Assert.True(prefetcher.PrefetchingBehavior.InMemoryFutureIndexBatchesSize >= 1536);
             Assert.Equal(511, prefetcher.PrefetchingBehavior.InMemoryIndexingQueueSize); // we took 1
 
             prefetcher.PrefetchingBehavior.ClearQueueAndFutureBatches();

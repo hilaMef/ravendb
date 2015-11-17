@@ -1,3 +1,4 @@
+using System;
 using System.Configuration;
 using System.Data.Common;
 
@@ -35,24 +36,31 @@ namespace Raven.Tests.Common.Attributes
     
         private static ConnectionStringSettings GetAppropriateConnectionStringNameInternal()
         {
-            foreach (ConnectionStringSettings connectionString in new[]
+            foreach (var connectionString in new[]
             {
                 ConfigurationManager.ConnectionStrings["SqlExpress"],
                 ConfigurationManager.ConnectionStrings["LocalHost"],
+                ConfigurationManager.ConnectionStrings["CiHost"],
             })
             {
                 if(connectionString == null)
                     continue;
 
-                var providerFactory = DbProviderFactories.GetFactory(connectionString.ProviderName);
+                var conn = connectionString;
+                if (connectionString.Name == "CiHost")
+                {
+                    conn = new ConnectionStringSettings(connectionString.Name, connectionString.ConnectionString.Replace("Initial Catalog=Raven.Tests", "Initial Catalog=Raven.Tests" + Environment.MachineName), connectionString.ProviderName);
+                }
+
+                var providerFactory = DbProviderFactories.GetFactory(conn.ProviderName);
                 try
                 {
                     using (var connection = providerFactory.CreateConnection())
                     {
-                        connection.ConnectionString = connectionString.ConnectionString;
+                        connection.ConnectionString = conn.ConnectionString;
                         connection.Open();
                     }
-                    return connectionString;
+                    return conn;
                 }
                     // ReSharper disable EmptyGeneralCatchClause
                 catch

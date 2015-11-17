@@ -305,6 +305,8 @@ interface userInfoDto {
 
 interface serverConfigsDto {
     IsGlobalAdmin: boolean;
+    CanReadWriteSettings: boolean;
+    CanReadSettings: boolean;
     CanExposeConfigOverTheWire: boolean;
 }
 
@@ -800,11 +802,11 @@ interface ICollectionBase {
 }
 
 interface smugglerOptionsDto {
-    IncludeDocuments: boolean;
-    IncludeIndexes: boolean;
-    IncludeTransformers: boolean;
-    IncludeAttachments: boolean;
-    RemoveAnalyzers: boolean;
+    OperateOnTypes: number;
+    BatchSize: number;
+    ShouldExcludeExpired: boolean;
+    Filters: filterSettingDto[];
+    TransformScript: string;
     NoneDefualtFileName: string;
 }
 

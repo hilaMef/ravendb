@@ -357,6 +357,9 @@ namespace Raven.Database.Config
 
             WebSockets.InitialBufferPoolSize = ravenSettings.WebSockets.InitialBufferPoolSize.Value;
 
+            MaxConcurrentDatabaseLoads = ravenSettings.MaxConcurrentDatabaseLoads.Value;
+            ConcurrentDatabaseLoadTimeout = ravenSettings.ConcurrentDatabaseLoadTimeout.Value;
+
             TempPath = ravenSettings.TempPath.Value;
 
             FillMonitoringSettings(ravenSettings);
@@ -388,6 +391,10 @@ namespace Raven.Database.Config
 
             return FilePathTools.MakeSureEndsWithSlash(workingDirectory.ToFullPath());
         }
+
+        public TimeSpan ConcurrentDatabaseLoadTimeout { get; private set; }
+
+        public int MaxConcurrentDatabaseLoads { get; private set; }
 
         public int MaxClauseCount { get; set; }
 
@@ -424,7 +431,7 @@ namespace Raven.Database.Config
         /// <summary>
         /// The time to wait before canceling a database operation such as load (many) or query
         /// </summary>
-        public TimeSpan DatabaseOperationTimeout { get; private set; }
+        public TimeSpan DatabaseOperationTimeout { get; set; }
 
         public TimeSpan TimeToWaitBeforeRunningIdleIndexes { get; internal set; }
 
@@ -536,7 +543,7 @@ namespace Raven.Database.Config
 
         public bool UseDefaultOAuthTokenServer
         {
-            get { return Settings["Raven/OAuthTokenServer"] == null;  }
+            get { return Settings["Raven/OAuthTokenServer"] == null; }
         }
 
         private void SetupOAuth()
@@ -991,7 +998,7 @@ namespace Raven.Database.Config
         private int? maxNumberOfParallelIndexTasks;
 
         //this is static so repeated initializations in the same process would not trigger reflection on all MEF plugins
-        private readonly static AssemblyCatalog CurrentAssemblyCatalog = new AssemblyCatalog(typeof (DocumentDatabase).Assembly);
+        private readonly static AssemblyCatalog CurrentAssemblyCatalog = new AssemblyCatalog(typeof(DocumentDatabase).Assembly);
 
         /// <summary>
         /// The expiration value for documents in the internal managed cache

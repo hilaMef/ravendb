@@ -62,9 +62,16 @@ namespace Raven.Database.Server.Controllers
         [RavenRoute("studio-tasks/server-configs")]
         public HttpResponseMessage GerServerConfigs()
         {
+            var userInfo = GetUserInfo();
             var serverConfigs = new ServerConfigs
             {
-                IsGlobalAdmin = GetUserInfo().IsAdminGlobal,
+                IsGlobalAdmin = userInfo.IsAdminGlobal,
+                CanReadWriteSettings = userInfo.IsAdminGlobal ||
+                                       (userInfo.ReadWriteDatabases != null && 
+                                        userInfo.ReadWriteDatabases.Any(x => x.Equals("<system>", StringComparison.InvariantCultureIgnoreCase))),
+                CanReadSettings = userInfo.IsAdminGlobal ||
+                                  (userInfo.ReadOnlyDatabases != null &&
+                                   userInfo.ReadOnlyDatabases.Any(x => x.Equals("<system>", StringComparison.InvariantCultureIgnoreCase))),
                 CanExposeConfigOverTheWire = CanExposeConfigOverTheWire()
             };
 
@@ -74,6 +81,8 @@ namespace Raven.Database.Server.Controllers
         private class ServerConfigs
         {
             public bool IsGlobalAdmin { get; set; }
+            public bool CanReadWriteSettings { get; set; }
+            public bool CanReadSettings { get; set; }
             public bool CanExposeConfigOverTheWire { get; set; }
         }
 
@@ -234,7 +243,7 @@ for(var customFunction in customFunctions) {{
         {
             public string SmugglerOptions { get; set; }
         }
-        
+
         [HttpPost]
         [RavenRoute("studio-tasks/exportDatabase")]
         [RavenRoute("databases/{databaseName}/studio-tasks/exportDatabase")]
@@ -269,9 +278,9 @@ for(var customFunction in customFunctions) {{
                 }
             });
             
-            var fileName = String.IsNullOrEmpty(smugglerOptions.NoneDefualtFileName) || (smugglerOptions.NoneDefualtFileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) ? 
+            var fileName = String.IsNullOrEmpty(smugglerOptions.NoneDefaultFileName) || (smugglerOptions.NoneDefaultFileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) ? 
                 string.Format("Dump of {0}, {1}", DatabaseName, DateTime.Now.ToString("yyyy-MM-dd HH-mm", CultureInfo.InvariantCulture)) :
-                smugglerOptions.NoneDefualtFileName;
+                smugglerOptions.NoneDefaultFileName;
             result.Content.Headers.ContentDisposition = new ContentDispositionHeaderValue("attachment")
             {
                 FileName = fileName + ".ravendump"
@@ -743,6 +752,23 @@ for(var customFunction in customFunctions) {{
             }
 
             return documentToSave;
+        }
+
+        [HttpPost]
+        [RavenRoute("studio-tasks/validateExportOptions")]
+        [RavenRoute("databases/{databaseName}/studio-tasks/validateExportOptions")]
+        public HttpResponseMessage ValidateExportOptions([FromBody] SmugglerDatabaseOptions smugglerOptions)
+        {
+            try
+            {
+                new SmugglerJintHelper().Initialize(smugglerOptions);
+            }
+            catch (Exception e)
+            {
+                throw new InvalidDataException("Incorrect transform script", e);
+            }
+
+            return GetEmptyMessage(HttpStatusCode.NoContent);
         }
 
         private static RavenJToken SetValueInDocument(string value)

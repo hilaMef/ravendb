@@ -29,6 +29,8 @@ namespace Raven.Client.Counters
 
         CounterStore.CounterStoreAdminOperations Admin { get; }
 
+		CounterStore.CounterStreams Stream { get; }
+
         Task ChangeAsync(string groupName, string counterName, long delta, CancellationToken token = default(CancellationToken));
 
         Task IncrementAsync(string groupName, string counterName, CancellationToken token = default(CancellationToken));
@@ -39,7 +41,7 @@ namespace Raven.Client.Counters
 
         Task DeleteAsync(string groupName, string counterName, CancellationToken token = default(CancellationToken));
 
-        Task<long> GetOverallTotalAsync(string groupName, string counterName, CancellationToken token = default(CancellationToken));
+        Task<CounterTotal> GetOverallTotalAsync(string groupName, string counterName, CancellationToken token = default(CancellationToken));
 
         Task<CounterStorageStats> GetCounterStatsAsync(CancellationToken token = default (CancellationToken));
 

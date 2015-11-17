@@ -17,7 +17,6 @@ using Raven.Database.Extensions;
 using Raven.Database.Impl;
 using Raven.Database.Server.Connections;
 using Raven.Database.Server.Security;
-using Raven.Database.Util;
 using Raven.Json.Linq;
 using Sparrow.Collections;
 
@@ -28,11 +27,13 @@ namespace Raven.Database.Server.Tenancy
     {
         protected static string DisposingLock = Guid.NewGuid().ToString();
 
+        protected readonly SemaphoreSlim ResourceSemaphore;
+
         protected static readonly ILog Logger = LogManager.GetCurrentClassLogger();
-        
+
         protected readonly ConcurrentSet<string> Locks = new ConcurrentSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        protected readonly ConcurrentDictionary<string, ManualResetEvent> Cleanups = new ConcurrentDictionary<string, ManualResetEvent>(StringComparer.OrdinalIgnoreCase); 
+        protected readonly ConcurrentDictionary<string, ManualResetEvent> Cleanups = new ConcurrentDictionary<string, ManualResetEvent>(StringComparer.OrdinalIgnoreCase);
 
         public readonly AtomicDictionary<Task<TResource>> ResourcesStoresCache =
                 new AtomicDictionary<Task<TResource>>(StringComparer.OrdinalIgnoreCase);
@@ -46,10 +47,14 @@ namespace Raven.Database.Server.Tenancy
         protected readonly InMemoryRavenConfiguration systemConfiguration;
         protected readonly DocumentDatabase systemDatabase;
 
+        protected readonly TimeSpan ConcurrentDatabaseLoadTimeout;
+
         protected AbstractLandlord(DocumentDatabase systemDatabase)
         {
             systemConfiguration = systemDatabase.Configuration;
             this.systemDatabase = systemDatabase;
+            ResourceSemaphore = new SemaphoreSlim(systemDatabase.Configuration.MaxConcurrentDatabaseLoads);
+            ConcurrentDatabaseLoadTimeout = systemDatabase.Configuration.ConcurrentDatabaseLoadTimeout;
         }
 
         public int MaxSecondsForTaskToWaitForDatabaseToLoad
@@ -70,7 +75,7 @@ namespace Raven.Database.Server.Tenancy
             }
         }
 
-        public string[] GetUserAllowedResourcesByPrefix( IPrincipal user, DocumentDatabase systemDatabase, AnonymousUserAccessMode annonymouseUserAccessMode, MixedModeRequestAuthorizer mixedModeRequestAuthorizer, string authHeader)
+        public string[] GetUserAllowedResourcesByPrefix(IPrincipal user, DocumentDatabase systemDatabase, AnonymousUserAccessMode annonymouseUserAccessMode, MixedModeRequestAuthorizer mixedModeRequestAuthorizer, string authHeader)
         {
             List<string> approvedResources = null;
             var nextPageStart = 0;
@@ -87,11 +92,7 @@ namespace Raven.Database.Server.Tenancy
                 if (user == null)
                     return null;
 
-                var oneTimePrincipal = user as MixedModeRequestAuthorizer.OneTimetokenPrincipal;
-                bool isAdministrator = oneTimePrincipal != null ?
-                    oneTimePrincipal.IsAdministratorInAnonymouseMode :
-                    user.IsAdministrator(annonymouseUserAccessMode);
-
+                bool isAdministrator = user.IsAdministrator(annonymouseUserAccessMode);
                 if (isAdministrator == false)
                 {
                     var authorizer = mixedModeRequestAuthorizer;
@@ -134,12 +135,12 @@ namespace Raven.Database.Server.Tenancy
             }
         }
 
-        public void Cleanup(string resource, 
-            TimeSpan? skipIfActiveInDuration, 
-            Func<TResource,bool> shouldSkip = null,
+        public void Cleanup(string resource,
+            TimeSpan? skipIfActiveInDuration,
+            Func<TResource, bool> shouldSkip = null,
             DocumentChangeTypes notificationType = DocumentChangeTypes.None)
         {
-            if(Cleanups.TryAdd(resource, new ManualResetEvent(false)) == false)
+            if (Cleanups.TryAdd(resource, new ManualResetEvent(false)) == false)
                 return;
 
             try
@@ -266,6 +267,15 @@ namespace Raven.Database.Server.Tenancy
                 // there is no else, the db is probably faulted
             });
             ResourcesStoresCache.Clear();
+
+            try
+            {
+                ResourceSemaphore.Dispose();
+            }
+            catch (Exception e)
+            {
+                Logger.WarnException("Failed to dispose resource semaphore", e);
+            }
         }
 
         public abstract Task<TResource> GetResourceInternal(string resourceName);

@@ -51,7 +51,7 @@ namespace Raven.Database.Counters.Controllers
                 return verificationResult;
 
             CounterChangeAction counterChangeAction;
-            long total = 0;
+            long? total = 0;
             using (var writer = CounterStorage.CreateWriter())
             {
                 counterChangeAction = writer.Store(groupName, counterName, delta);
@@ -59,7 +59,13 @@ namespace Raven.Database.Counters.Controllers
                     return GetEmptyMessage();
 
                 writer.Commit();
-                total = writer.GetCounterTotal(groupName, counterName);
+                if (!writer.TryGetCounterTotal(groupName, counterName,out total))
+                {
+                    return GetMessageWithObject(new
+                    {
+                        Message = $"Could not find a counter with groupName = {groupName}, counterName = {counterName}"
+                    },HttpStatusCode.NotFound);
+                }
             }
 
             CounterStorage.MetricsCounters.ClientRequests.Mark();
@@ -69,7 +75,7 @@ namespace Raven.Database.Counters.Controllers
                 CounterName = counterName,
                 Action = counterChangeAction,
                 Delta = delta,
-                Total = total
+                Total = total.Value
             });
 
             return GetEmptyMessage();
@@ -192,8 +198,6 @@ namespace Raven.Database.Counters.Controllers
                 }
             }, timeoutTokenSource.Token);
 
-            //TODO: do not forget to add task Id
-            AddRequestTraceInfo(log => log.AppendFormat("\tCounters batch operation received {0:#,#;;0} changes in {1}", counterChanges, sp.Elapsed));
 
             long id;
             DatabasesLandlord.SystemDatabase.Tasks.AddTask(task, status, new TaskActions.PendingTaskDescription
@@ -203,7 +207,11 @@ namespace Raven.Database.Counters.Controllers
                 Payload = operationId.ToString()
             }, out id, timeoutTokenSource);
 
-            task.Wait(timeoutTokenSource.Token);
+			//TODO: do not forget to add task Id
+			AddRequestTraceInfo(log => 
+				log.AppendFormat("\tCounters batch operation received {0:#,#;;0} changes in {1}, long running task Id : {2}", counterChanges, sp.Elapsed, id));
+
+			task.Wait(timeoutTokenSource.Token);
 
             return GetMessageWithObject(new
             {
@@ -385,9 +393,9 @@ namespace Raven.Database.Counters.Controllers
             }
 
             return GetMessageWithObject(deletedCount);
-        }
+        }	
 
-        [RavenRoute("cs/{counterStorageName}/counters")]
+		[RavenRoute("cs/{counterStorageName}/counters")]
         [HttpGet]
         public HttpResponseMessage GetCounterSummariesByGroup(int skip, int take, string group)
         {
@@ -418,14 +426,15 @@ namespace Raven.Database.Counters.Controllers
             {
                 try
                 {
-                    var overallTotal = reader.GetCounterTotal(groupName, counterName);
-                    return Request.CreateResponse(HttpStatusCode.OK, overallTotal);
-                }
-                catch (InvalidDataException e)
-                {
-                    if (e.Data.Contains("DoesntExist"))
-                        return Request.CreateResponse(HttpStatusCode.NotFound, "Counter with specified group and name wasn't found");
+                    long? total;
+                    if (!reader.TryGetCounterTotal(groupName, counterName, out total))
+                        return GetMessageWithObject(new CounterTotal {IsExists = false},HttpStatusCode.NotFound);
 
+                    Debug.Assert(total.HasValue);
+                    return GetMessageWithObject(new CounterTotal { IsExists = true, Total = total.Value});
+                }
+                catch (Exception e)
+                {
                     return Request.CreateErrorResponse(HttpStatusCode.BadRequest, e);
                 }
             }
@@ -447,7 +456,7 @@ namespace Raven.Database.Counters.Controllers
 
             using (var reader = CounterStorage.CreateReader())
             {
-                var counterSummaries = reader.GetCountersByPrefix(groupName, counterNamePrefix, skip, take).ToList();
+                var counterSummaries = reader.GetCounterSummariesByPrefix(groupName, counterNamePrefix, skip, take).ToList();
                 return GetMessageWithObject(counterSummaries);
             }
         }

@@ -847,17 +847,17 @@ namespace Raven.Client.Connection.Async
             AddTransactionInformation(metadata);
 
             var uniqueIds = new HashSet<string>(keys);
-                // if it is too big, we drop to POST (note that means that we can't use the HTTP cache any longer)
-                // we are fine with that, requests to load > 128 items are going to be rare
+            // if it is too big, we drop to POST (note that means that we can't use the HTTP cache any longer)
+            // we are fine with that, requests to load > 128 items are going to be rare
             var isGet = uniqueIds.Sum(x => x.Length) < 1024;
             var method = isGet ? HttpMethod.Get : HttpMethod.Post;
             if (isGet)
-                {
-                    path += "&" + string.Join("&", uniqueIds.Select(x => "id=" + Uri.EscapeDataString(x)).ToArray());
-                }
-
-            using (var request = jsonRequestFactory.CreateHttpJsonRequest(new CreateHttpJsonRequestParams(this, path, method, operationMetadata.Credentials, convention)
-                .AddOperationHeaders(OperationsHeaders))
+            {
+                path += "&" + string.Join("&", uniqueIds.Select(x => "id=" + Uri.EscapeDataString(x)).ToArray());
+            }
+            var createHttpJsonRequestParams = new CreateHttpJsonRequestParams(this, path, method, metadata, operationMetadata.Credentials, convention)
+                .AddOperationHeaders(OperationsHeaders);
+            using (var request = jsonRequestFactory.CreateHttpJsonRequest(createHttpJsonRequestParams)
                 .AddRequestExecuterAndReplicationHeaders(this, operationMetadata.Url))
             {
                 if (isGet == false)
@@ -1930,7 +1930,7 @@ namespace Raven.Client.Connection.Async
             private bool complete;
 
             private bool wasInitialized;
-            private Func<JsonTextReaderAsync, bool> customizedEndResult;
+            private readonly Func<JsonTextReaderAsync, bool> customizedEndResult;
 
             public YieldStreamResults(HttpJsonRequest request, Stream stream, int start = 0, int pageSize = 0, RavenPagingInformation pagingInformation = null, Func<JsonTextReaderAsync, bool> customizedEndResult = null)
             {

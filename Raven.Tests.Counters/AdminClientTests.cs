@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using Raven.Abstractions.Counters;
 using Raven.Client.Extensions;
@@ -23,10 +25,37 @@ namespace Raven.Tests.Counters
             }
         }
 
-        [Fact]
+		[Fact]
+		public async Task CounterStorageExists_should_work1()
+		{
+			using (var store = NewRemoteCountersStore(DefaultCounterStorageName, createDefaultCounter: false))
+			{
+				await store.Admin.CreateCounterStorageAsync(new CounterStorageDocument(), CounterStorageName);
+				Assert.True(await store.Admin.CounterStorageExists(CounterStorageName));
+			}
+		}
+
+		[Fact]
+		public async Task CounterStorageExists_should_work2()
+		{
+			using (var store = NewRemoteCountersStore(DefaultCounterStorageName))
+				Assert.True(await store.Admin.CounterStorageExists());
+		}
+
+		[Fact]
+		public async Task CounterStorageExists_should_work3()
+		{
+			using (var store = NewRemoteCountersStore(DefaultCounterStorageName, createDefaultCounter: false))
+				Assert.False(await store.Admin.CounterStorageExists(CounterStorageName));
+		}
+
+		[Fact]
         public async Task Should_be_able_to_create_multiple_counter_storages()
         {
-            var expectedClientNames = new[] { CounterStorageName + "A", CounterStorageName + "B", CounterStorageName + "C" };
+            var expectedClientNames = new ReadOnlyCollection<string>(new List<string>()
+            {
+                CounterStorageName + "A", CounterStorageName + "B", CounterStorageName + "C"
+            });
             using (var store = NewRemoteCountersStore(DefaultCounterStorageName,createDefaultCounter: false))
             {
                 var defaultCountersDocument = new CounterStorageDocument();
@@ -34,7 +63,7 @@ namespace Raven.Tests.Counters
                 await store.Admin.CreateCounterStorageAsync(defaultCountersDocument, expectedClientNames[1]);
                 await store.Admin.CreateCounterStorageAsync(defaultCountersDocument, expectedClientNames[2]);
 
-                var counterStorageNames = await store.Admin.GetCounterStoragesNamesAsync();
+                var counterStorageNames = (await store.Admin.GetCounterStoragesNamesAsync());
                 Assert.Equal(counterStorageNames, expectedClientNames);
             }
         }
@@ -42,7 +71,10 @@ namespace Raven.Tests.Counters
         [Fact]
         public async Task Should_be_able_to_delete_counter_storages()
         {
-            var expectedClientNames = new[] { CounterStorageName + "A", CounterStorageName + "C" };
+            var expectedClientNames = new ReadOnlyCollection<string>(new List<string>()
+            {
+                CounterStorageName + "A", CounterStorageName + "C"
+            });
             using (var store = NewRemoteCountersStore(DefaultCounterStorageName, createDefaultCounter: false))
             {
                 await store.Admin.CreateCounterStorageAsync(MultiDatabase.CreateCounterStorageDocument(expectedClientNames[0]), expectedClientNames[0]);
@@ -59,7 +91,10 @@ namespace Raven.Tests.Counters
         [Fact]
         public async Task Should_be_able_to_create_multiple_counter_storages_in_parallel()
         {
-            var expectedClientNames = new[] { CounterStorageName + "A", CounterStorageName + "B", CounterStorageName + "C" };
+            var expectedClientNames = new ReadOnlyCollection<string>(new List<string>()
+            {
+                CounterStorageName + "A", CounterStorageName + "B", CounterStorageName + "C"
+            });
             using (var store = NewRemoteCountersStore(DefaultCounterStorageName, createDefaultCounter: false))
             {
                 var defaultCountersDocument = new CounterStorageDocument();
