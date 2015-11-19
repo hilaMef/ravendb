@@ -77,7 +77,7 @@ namespace Raven.Database.Server.Controllers
             status.IsTimedOut = false;
 
             var documents = 0;
-			var mre = new ManualResetEventSlim(false);
+            var mre = new ManualResetEventSlim(false);
             var tre = new CancellationTokenSource();
             
             var inputStream = await InnerRequest.Content.ReadAsStreamAsync().ConfigureAwait(false);
@@ -88,36 +88,34 @@ namespace Raven.Database.Server.Controllers
             Exception error = null;
             var task = Task.Factory.StartNew(() =>
             {
-	            try
-	            {
-		            CurrentOperationContext.User.Value = user;
-		            CurrentOperationContext.Headers.Value = headers;
-		            currentDatabase.Documents.BulkInsert(options, YieldBatches(timeout, inputStream, mre, options, batchSize => documents += batchSize), operationId, tre.Token, timeout);
-	            }
-	            catch (InvalidDataException e)
-	            {
-		            status.Faulted = true;
-		            status.State = RavenJObject.FromObject(new {Error = "Could not understand json.", InnerError = e.SimplifyException().Message});
-		            status.IsSerializationError = true;
-		            error = e;
-	            }
-	            catch (OperationCanceledException)
-	            {
-		            // happens on timeout
-		            currentDatabase.Notifications.RaiseNotifications(new BulkInsertChangeNotification {OperationId = operationId, Message = "Operation cancelled, likely because of a batch timeout", Type = DocumentChangeTypes.BulkInsertError});
-		            status.IsTimedOut = true;
-		            status.Faulted = true;
-	            }
-	            catch (OperationVetoedException)
-	            {
-					status.Faulted = true;
-		            error = new OperationVetoedException("The versioning bundle is enabled. " +
-		                                                 "You should disable versioning during bulkInsert. " +
-		                                                 "Please set the 'ShouldDisableVersioning flag to true before import'");
-	            }
-				catch (Exception e)
-				{
-					status.Faulted = true;
+                try
+                {
+                    CurrentOperationContext.User.Value = user;
+                    CurrentOperationContext.Headers.Value = headers;
+                    currentDatabase.Documents.BulkInsert(options, YieldBatches(timeout, inputStream, mre, options, batchSize => documents += batchSize), operationId, tre.Token, timeout);
+                }
+                catch (InvalidDataException e)
+                {
+                    status.Faulted = true;
+                    status.State = RavenJObject.FromObject(new {Error = "Could not understand json.", InnerError = e.SimplifyException().Message});
+                    status.IsSerializationError = true;
+                    error = e;
+                }
+                catch (OperationCanceledException)
+                {
+                    // happens on timeout
+                    currentDatabase.Notifications.RaiseNotifications(new BulkInsertChangeNotification {OperationId = operationId, Message = "Operation cancelled, likely because of a batch timeout", Type = DocumentChangeTypes.BulkInsertError});
+                    status.IsTimedOut = true;
+                    status.Faulted = true;
+                }
+                catch (OperationVetoedException e)
+                {
+                    status.Faulted = true;
+                    error = e;
+                }
+                catch (Exception e)
+                {
+                    status.Faulted = true;
                     status.State = RavenJObject.FromObject(new { Error = e.SimplifyException().Message });
                     error = e;
                 }
@@ -339,6 +337,6 @@ namespace Raven.Database.Server.Controllers
             public bool IsTimedOut { get; set; }
 
             public bool IsSerializationError { get; set; }
-		}
+        }
     }
 }
