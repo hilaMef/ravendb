@@ -43,7 +43,7 @@ namespace Raven.Database.FileSystem.Bundles.Versioning
             {
                 ignoreVersioning = metadata.Value<string>(Constants.RavenIgnoreVersioning);
             }
-            
+
             return ignoreVersioning != null && ignoreVersioning.Equals("True");
         }
 
@@ -70,7 +70,7 @@ namespace Raven.Database.FileSystem.Bundles.Versioning
             {
                 var configurationName = "Raven/Versioning/" + directoryName.TrimStart('/');
 
-                if (TryGetDeserializedConfig(accessor, configurationName, out fileVersioningConfiguration)) 
+                if (TryGetDeserializedConfig(accessor, configurationName, out fileVersioningConfiguration))
                     return fileVersioningConfiguration;
 
                 directoryName = RavenFileNameHelper.RavenDirectory(Path.GetDirectoryName(directoryName));

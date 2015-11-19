@@ -167,7 +167,7 @@ namespace Raven.Tests.Issues
                         }), new RavenJObject());
                     using (var session = store.OpenSession("Source"))
                     {
-                        var doc = new User {Id = "worker/1", Age = 20};
+                        var doc = new User { Id = "worker/1", Age = 20 };
                         session.Store(doc);
                         session.SaveChanges();
                     }

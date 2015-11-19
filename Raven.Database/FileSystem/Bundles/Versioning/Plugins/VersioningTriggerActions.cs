@@ -27,37 +27,37 @@ namespace Raven.Database.FileSystem.Bundles.Versioning.Plugins
         public VetoResult AllowOperation(string name, RavenJObject metadata)
         {
             VetoResult veto = VetoResult.Allowed;
-	        fileSystem.Storage.Batch(accessor =>
-	        {
-		        var file = accessor.ReadFile(name);
-		        if (file == null)
-		        {
-					if (fileSystem.IsVersioningActive(name) == false)
-						veto = VetoResult.Allowed;
+            fileSystem.Storage.Batch(accessor =>
+            {
+                var file = accessor.ReadFile(name);
+                if (file == null)
+                {
+                    if (fileSystem.IsVersioningActive(name) == false)
+                        veto = VetoResult.Allowed;
 
-					else if (accessor.IsVersioningDisabledForImport(metadata))
-						veto = VetoResult.Allowed;
+                    else if (accessor.IsVersioningDisabledForImport(metadata))
+                        veto = VetoResult.Allowed;
 
-					else if (fileSystem.ChangesToRevisionsAllowed() == false &&
-						metadata.Value<string>(VersioningUtil.RavenFileRevisionStatus) == "Historical")
-					{
-						veto = VetoResult.Deny("Creating a historical revision is not allowed");
-					}
-			        return;
-		        }
+                    else if (fileSystem.ChangesToRevisionsAllowed() == false &&
+                        metadata.Value<string>(VersioningUtil.RavenFileRevisionStatus) == "Historical")
+                    {
+                        veto = VetoResult.Deny("Creating a historical revision is not allowed");
+                    }
+                    return;
+                }
 
-		        if (accessor.IsVersioningActive(name))
-		        {
-					if(accessor.IsVersioningDisabledForImport(metadata))
-						veto = VetoResult.Allowed;
+                if (accessor.IsVersioningActive(name))
+                {
+                    if (accessor.IsVersioningDisabledForImport(metadata))
+                        veto = VetoResult.Allowed;
 
-			        else if (fileSystem.ChangesToRevisionsAllowed() == false &&
-			                 file.Metadata.Value<string>(VersioningUtil.RavenFileRevisionStatus) == "Historical")
-			        {
-				        veto = VetoResult.Deny("Modifying a historical revision is not allowed");
-			        }
-		        }
-	        });
+                    else if (fileSystem.ChangesToRevisionsAllowed() == false &&
+                             file.Metadata.Value<string>(VersioningUtil.RavenFileRevisionStatus) == "Historical")
+                    {
+                        veto = VetoResult.Deny("Modifying a historical revision is not allowed");
+                    }
+                }
+            });
             return veto;
         }
 
@@ -85,7 +85,7 @@ namespace Raven.Database.FileSystem.Bundles.Versioning.Plugins
                 long revision;
 
                 if (metadata.__ExternalState.ContainsKey("Synchronization-Next-Revision"))
-                    revision = (long) metadata.__ExternalState["Synchronization-Next-Revision"];
+                    revision = (long)metadata.__ExternalState["Synchronization-Next-Revision"];
                 else
                     revision = GetNextRevisionNumber(name, accessor);
 

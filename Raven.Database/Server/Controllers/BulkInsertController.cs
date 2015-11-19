@@ -79,7 +79,7 @@ namespace Raven.Database.Server.Controllers
             var documents = 0;
             var mre = new ManualResetEventSlim(false);
             var tre = new CancellationTokenSource();
-            
+
             var inputStream = await InnerRequest.Content.ReadAsStreamAsync().ConfigureAwait(false);
             var currentDatabase = Database;
             var timeout = tre.TimeoutAfter(currentDatabase.Configuration.BulkImportBatchTimeout);
@@ -97,14 +97,14 @@ namespace Raven.Database.Server.Controllers
                 catch (InvalidDataException e)
                 {
                     status.Faulted = true;
-                    status.State = RavenJObject.FromObject(new {Error = "Could not understand json.", InnerError = e.SimplifyException().Message});
+                    status.State = RavenJObject.FromObject(new { Error = "Could not understand json.", InnerError = e.SimplifyException().Message });
                     status.IsSerializationError = true;
                     error = e;
                 }
                 catch (OperationCanceledException)
                 {
                     // happens on timeout
-                    currentDatabase.Notifications.RaiseNotifications(new BulkInsertChangeNotification {OperationId = operationId, Message = "Operation cancelled, likely because of a batch timeout", Type = DocumentChangeTypes.BulkInsertError});
+                    currentDatabase.Notifications.RaiseNotifications(new BulkInsertChangeNotification { OperationId = operationId, Message = "Operation cancelled, likely because of a batch timeout", Type = DocumentChangeTypes.BulkInsertError });
                     status.IsTimedOut = true;
                     status.Faulted = true;
                 }
@@ -132,11 +132,11 @@ namespace Raven.Database.Server.Controllers
 
             long id;
             Database.Tasks.AddTask(task, status, new TaskActions.PendingTaskDescription
-                                                 {
-                                                     StartTime = SystemTime.UtcNow,
-                                                     TaskType = TaskActions.PendingTaskType.BulkInsert,
-                                                     Payload = operationId.ToString()
-                                                 }, out id, tre);
+            {
+                StartTime = SystemTime.UtcNow,
+                TaskType = TaskActions.PendingTaskType.BulkInsert,
+                Payload = operationId.ToString()
+            }, out id, tre);
 
             await task.ConfigureAwait(false);
 
@@ -223,7 +223,7 @@ namespace Raven.Database.Server.Controllers
                 {
                     case BulkInsertFormat.Bson:
                         {
-                var count = reader.ReadInt32();
+                            var count = reader.ReadInt32();
 
                             return YieldBsonDocumentsInBatch(timeout, reader, count, increaseDocumentsCount).ToArray();
                         }
@@ -247,7 +247,7 @@ namespace Raven.Database.Server.Controllers
                     timeout.Delay();
 
                     while (jsonReader.Read())
-                                                                 {
+                    {
                         if (jsonReader.TokenType == JsonToken.StartObject)
                             break;
                     }
@@ -332,7 +332,7 @@ namespace Raven.Database.Server.Controllers
 
             public bool Faulted { get; set; }
 
-            public RavenJToken State { get; set; } 
+            public RavenJToken State { get; set; }
 
             public bool IsTimedOut { get; set; }
 
