@@ -24,31 +24,68 @@ class exportDatabase extends viewModelBase {
     noneDefualtFileName = ko.observable<string>("");
     chooseDifferntFileName = ko.observable<boolean>(false);
     authToken = ko.observable<string>();
+    exportCommand: KnockoutComputed<string>;
 
     constructor() {
         super();
         aceEditorBindingHandler.install();
     }
 
-    activate(args: any) {
-        super.activate(args);
-        this.updateHelpLink('YD9M1R');
+	activate(args: any) {
+		super.activate(args);
+		this.updateHelpLink('YD9M1R');
 
-        new getCollectionsCommand(this.activeDatabase())
-            .execute()
-            .done((collections: collection[]) => {
-                this.includedCollections(collections.map(c => {
-                    return {
-                        collection: c.name,
-                        isIncluded: ko.observable(false)
-                    }
-                }));
-            });
+		new getCollectionsCommand(this.activeDatabase())
+			.execute()
+			.done((collections: collection[]) => {
+				this.includedCollections(collections.map(c => {
+					return {
+						collection: c.name,
+						isIncluded: ko.observable(false)
+					}
+				}));
+			});
 
-        this.exportActionUrl = ko.computed(() => {
-            var token = this.authToken();
-            return appUrl.forResourceQuery(this.activeDatabase()) + "/studio-tasks/exportDatabase" + (token ? '?singleUseAuthToken=' + token : '');
-        });
+		this.exportActionUrl = ko.computed(() => {
+			var token = this.authToken();
+			return appUrl.forResourceQuery(this.activeDatabase()) + "/studio-tasks/exportDatabase" + (token ? '?singleUseAuthToken=' + token : '');
+		});
+
+	this.exportCommand = ko.computed(() => {
+		    var types = [];
+            if (this.includeDocuments()) types.push("Documents");
+			if (this.includeIndexes()) types.push("Indexes");
+			if (this.includeAttachments()) types.push("Attachments");
+			if (this.includeTransformers()) types.push("Transformers");
+	        var databaseName = this.activeDatabase().name;
+		    var targetServer = location.origin;
+		    var filterArr = [];
+              for (var x in this.filters()) {
+	              
+                 if (this.filters().hasOwnProperty(x) == false)
+                     continue;
+	          
+                var filter: filterSettingDto = this.filters()[x];
+                if (filter.ShouldMatch) { 
+                        if(filterArr.contains(filter)) 
+                            continue;
+                        else   
+		                    filterArr.push(" --filter=" + filter.Path + "=" + filter.Values.toString());
+                } 
+                else {
+                    if(filterArr.contains(filter)) 
+                           continue; 
+                    else                 
+	                    filterArr.push(" --negative--filter=" + filter.Path + "=" + filter.Values.toString());
+                }
+            }
+		var filterStr = filterArr.toString();
+	    var transform = !!this.transformScript() ? " --transform=" + this.transformScript() : "";
+		var collections = [];
+		if(this.includeAllCollections()==false)
+            collections = this.includedCollections().filter((collection) => collection.isIncluded()).map((collection) => collection.collection);
+		return "Raven.Smuggler out " + targetServer + " --database = " + databaseName + (types.length > 0 ? "--operate-on-types=" + types.toString() : "") + " --batch-size=" + this.batchSize()  + filterStr + transform + " --excludeexpired=" + this.includeExpiredDocuments() + (collections.length > 0 ? " --metadata-filter=Raven-Entity-Name=" + collections.toString() : "");
+	});
     }
 
     attached() {
